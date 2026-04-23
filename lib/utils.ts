@@ -11,7 +11,7 @@ export function truncateString(str: string, maxLength: number): string {
   return str.slice(0, maxLength).trimEnd() + '...'
 }
 
-export function getRandomElements(arr:any, count:number) {
+export function getRandomElements<T>(arr: T[], count: number): T[] {
   const shuffled = [...arr];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

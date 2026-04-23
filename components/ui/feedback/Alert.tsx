@@ -39,7 +39,7 @@ const Alert = ({ label, type, duration = 5000 }: AlertProps) => {
     }, duration)
 
     return () => clearTimeout(timer)   // ← cleanup jika label berubah sebelum timer selesai
-  }, [label, duration])
+  }, [label, duration, setAlert])
 
 
   if (!label) return null    // ← tidak render jika label kosong
