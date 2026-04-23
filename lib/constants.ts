@@ -1,6 +1,5 @@
 /**
  * Navigation links untuk Navbar dan Footer
- * Digunakan di seluruh aplikasi untuk konsistensi
  */
 export const navigationLinks = [
   {
@@ -54,3 +53,31 @@ export const companyInfo = {
   description: "A fan-made MTG deck builder tool to help players create and manage their decks with ease.",
   year: new Date().getFullYear(),
 };
+
+export const authedLinks = [
+  { name: "Your Deck", href: "/your-decks", label: "View your saved decks" },
+  { name: "Collection", href: "/collection", label: "View your card collection" },
+  { name: "Wishlist", href: "/wishlist", label: "View your wishlist" },
+];
+
+export const profileLinks = [
+  { name: "Your Deck", href: "/your-decks" },
+  { name: "Collection", href: "/collection" },
+  { name: "Wishlist", href: "/wishlist" },
+  { name: "Account", href: "/account/settings" },
+]
+
+export const createItems = [
+  {
+    name: "New Deck",
+    description: "Start a fresh brew from a commander, archetype, or blank slate.",
+  },
+  {
+    name: "New Package",
+    description: "Group a reusable set of cards for ramp, removal, or synergy cores.",
+  },
+  {
+    name: "New List",
+    description: "Track pickups, sideboards, or testing piles in a lightweight list.",
+  },
+]

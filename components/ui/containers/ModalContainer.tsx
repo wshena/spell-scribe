@@ -53,7 +53,7 @@ const ModalContainer = ({
         />
       )}
 
-      <div className={cn('relative z-101 max-h-[calc(100vh-2rem)] max-w-full', contentClassName)}>
+      <div className={cn('relative flex items-center justify-center z-101 max-h-[calc(100vh-2rem)] max-w-full', contentClassName)}>
         {children}
       </div>
     </div>
