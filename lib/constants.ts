@@ -4,25 +4,20 @@
  */
 export const navigationLinks = [
   {
-    name: "Beranda",
+    name: "Home",
     href: "/",
-    label: "Kembali ke halaman utama",
-  },
-  {
-    name: "Deck Builder",
-    href: "/deck-builder",
-    label: "Buat dan edit deck",
-  },
-  {
-    name: "Koleksi",
-    href: "/collection",
-    label: "Lihat koleksi kartu Anda",
+    label: "Go to homepage",
   },
   {
     name: "Tournament",
     href: "/tournament",
-    label: "Lihat turnamen dan kompetisi",
+    label: "View tournaments and competitions",
   },
+  {
+    name: "Help",
+    href: "/help",
+    label: "Get help and support",
+  }
 ];
 
 /**
@@ -55,7 +50,7 @@ export const footerLinks = {
  * Informasi perusahaan
  */
 export const companyInfo = {
-  name: "MTG Deckbuilder",
-  description: "Platform terpadu untuk membangun dan mengelola deck Magic: The Gathering",
+  name: "SpellScribe",
+  description: "A fan-made MTG deck builder tool to help players create and manage their decks with ease.",
   year: new Date().getFullYear(),
 };
