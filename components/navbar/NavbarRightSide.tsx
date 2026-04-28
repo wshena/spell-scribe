@@ -12,7 +12,7 @@ export default function NavbarRightSide({ isLoggedIn }: { isLoggedIn: boolean })
 
   return (
     <div className="flex items-center gap-5 xl:gap-8">
-      <Link href="/" className="text-xl font-bold text-primary hover:text-primary-dark transition-colors">
+      <Link href="/" className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-200">
         SpellScribe
       </Link>
 

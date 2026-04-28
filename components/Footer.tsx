@@ -9,7 +9,9 @@ const Footer = () => {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-5">
           {/* Brand Section */}
           <div className="md:col-span-1">
-            <h3 className="text-lg font-bold">{companyInfo.name}</h3>
+            <Link href="/" className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-200">
+              SpellScribe
+            </Link>
             <p className="mt-2 text-sm text-text-tertiary">{companyInfo.description}</p>
           </div>
 

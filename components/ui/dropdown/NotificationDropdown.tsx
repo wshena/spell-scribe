@@ -33,12 +33,18 @@ export default function NotificationDropdown({ onClose }: { onClose?: () => void
     <div ref={dropdownRef} className="absolute right-0 top-[calc(100%+0.75rem)] w-80 rounded-xl border border-white/10 bg-[#161b24] p-2 shadow-2xl shadow-black/40 z-50">
       <div className="px-3 pb-2 pt-1 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Notifications</p>
-        <button className="text-xs text-slate-400 hover:text-white" onClick={() => setNotifications([])}>Clear All</button>
+        <button 
+          disabled={notifications.length === 0}
+          className={cn(
+            "cursor-pointer text-xs text-slate-400 hover:text-white",
+            notifications.length === 0 && "cursor-not-allowed opacity-50 hover:text-slate-400"
+          )} 
+          onClick={() => setNotifications([])}>Clear All</button>
       </div>
       <div className="space-y-1 max-h-72 overflow-y-auto">
-        {notifications.length === 0 ? (
+        {notifications?.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm text-slate-400">No notifications</div>
-        ) : notifications.map((notif) => (
+        ) : notifications?.map((notif) => (
           <div key={notif.id} className={cn("rounded-lg px-3 py-3", notif.read ? "bg-transparent" : "bg-violet-500/10") }>
             <div className="flex items-center justify-between">
               <span className={cn("block text-sm font-semibold", notif.read ? "text-slate-300" : "text-white")}>{notif.title}</span>
