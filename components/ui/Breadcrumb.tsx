@@ -23,14 +23,14 @@ const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
             <li key={index} className="flex items-center gap-1">
               {/* Separator — tidak ditampilkan di item pertama */}
               {index > 0 && (
-                <MdChevronRight className="text-gray-400" size={18} />
+                <MdChevronRight className="text-violet-400" size={18} />
               )}
 
               {/* Item aktif (terakhir) — tidak bisa diklik */}
               {isLast || !item.href ? (
                 <span className={cn(
-                  'text-gray-500',
-                  isLast && 'text-gray-800 font-medium'
+                  'text-white/70',
+                  isLast && 'text-white font-medium'
                 )}>
                   {item.label}
                 </span>
@@ -38,7 +38,7 @@ const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
                 // Item biasa — bisa diklik
                 <Link
                   href={item.href}
-                  className="text-gray-500 hover:text-green-600 hover:underline transition-colors"
+                  className="text-violet-400 hover:text-violet-600 hover:underline transition-colors"
                 >
                   {item.label}
                 </Link>

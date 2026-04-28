@@ -2,7 +2,7 @@ import { FaSearch, FaFilter, FaBell, FaPlus, FaBox, FaAngleRight } from "react-i
 import { IoCreateSharp } from "react-icons/io5";
 import { CgProfile } from "react-icons/cg";
 import { CiMenuFries } from "react-icons/ci";
-import { MdCancel } from "react-icons/md";
+import { MdCancel, MdOutlineFlipCameraAndroid } from "react-icons/md";
 import { BsStack } from "react-icons/bs";
 import { TbCardsFilled } from "react-icons/tb";
 
@@ -10,6 +10,10 @@ interface Icons {
   style?:string
   size: number
   color?: string
+}
+
+export const FlipIcon: React.FC<Icons> = ({ style, size, color }) => {
+  return <MdOutlineFlipCameraAndroid className={style} size={size} color={color} />;
 }
 
 export const AngleRightIcon: React.FC<Icons> = ({ style, size, color }) => {

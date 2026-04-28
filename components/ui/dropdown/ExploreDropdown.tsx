@@ -9,7 +9,7 @@ const exploreLinks = [
   },
   { 
     name: "Cards", 
-    href: '/cards',
+    href: '/sets',
     description: "Explore popular cards", 
   },
 ]

@@ -16,6 +16,11 @@ export interface ScryfallSet {
   set_type: string;
   icon_svg_uri: string | null;
   digital: boolean;
+  search_uri: string;
+  uri: string;
+  scryfall_uri: string;
+  nonfoil_only: boolean;
+  foil_only: boolean;
 }
 
 export interface SetFilters {
@@ -258,6 +263,23 @@ export async function fetchAllSets(): Promise<ScryfallSet[]> {
   const payload = (await response.json()) as ScryfallSetsResponse;
 
   return payload.data.filter((set) => set.card_count > 0);
+}
+
+export async function fetchSetDetail(setCode: string): Promise<ScryfallSet> {
+  const response = await fetch(`${process.env.SCRYFALL_API_URL}/sets/${setCode}`, {
+    next: {
+      revalidate: 60 * 60 * 24,
+      tags: ["scryfall-sets"],
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Scryfall sets");
+  }
+
+  const payload = (await response.json()) as ScryfallSet;
+
+  return payload;
 }
 
 export async function getSetsPage(filters: SetFilters): Promise<SetsPageResult> {

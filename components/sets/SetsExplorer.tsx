@@ -11,7 +11,7 @@ import CardsSearchTipsModal from '../ui/modal/CardsSearchTipsModal'
 import CardsAdvancedSearchModal from '../ui/modal/CardsAdvancedSearchModal'
 import { SearchIcon } from '../icons/Icons'
 
-interface CardsExplorerProps {
+interface SetsExplorerProps {
   initialItems: ScryfallSet[]
   initialHasMore: boolean
   initialTotalCount: number
@@ -25,13 +25,13 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 })
 
-export default function CardsExplorer({
+export default function SetsExplorer({
   initialItems,
   initialHasMore,
   initialTotalCount,
   initialFilters,
   setTypeOptions,
-}: CardsExplorerProps) {
+}: SetsExplorerProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
