@@ -10,6 +10,7 @@ import { useUtilityStore } from '@/lib/zustand/utilityStore'
 import CardsSearchTipsModal from '../ui/modal/CardsSearchTipsModal'
 import CardsAdvancedSearchModal from '../ui/modal/CardsAdvancedSearchModal'
 import { SearchIcon } from '../icons/Icons'
+import Image from 'next/image'
 
 interface SetsExplorerProps {
   initialItems: ScryfallSet[]
@@ -259,9 +260,12 @@ export default function SetsExplorer({
                   <td className="py-4">
                     <Link href={`/sets/${set.code}`} className="flex items-center gap-3 text-violet-200 hover:text-violet-100 hover:underline">
                       {set.icon_svg_uri ? (
-                        <img
+                        <Image
                           src={set.icon_svg_uri}
                           alt=""
+                          width={24}
+                          height={24}
+                          loading="lazy"
                           className="h-6 w-6 rounded-sm bg-white/90 p-0.5"
                         />
                       ) : (

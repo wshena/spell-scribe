@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'cards.scryfall.io',
         port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'svgs.scryfall.io',
+        port: '',
       }
     ]
   }

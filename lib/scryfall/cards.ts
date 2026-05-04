@@ -115,4 +115,6 @@ export interface CardProps {
   set_name: string;
   collector_number: string;
   card_faces?: CardFace[];
+  flavor_text?: string;
+  border_color?: string;
 }

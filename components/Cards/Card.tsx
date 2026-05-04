@@ -1,15 +1,30 @@
 'use client'
 import { CardProps } from "@/lib/scryfall/cards"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { FlipIcon } from "../icons/Icons"
 import Image from "next/image"
+import { useUtilityStore } from "@/lib/zustand/utilityStore"
+import CardDetailModal from "../ui/modal/CardDetailModal"
 
 const Card = ({ data }: { data: CardProps }) => {
+  const openModal = useUtilityStore((state) => state.openModal)
+
+  const handleCardClick = () => {
+    openModal(
+      <CardDetailModal card={data} />,
+      {
+        contentClassName: "w-full",
+      }
+    )
+  }
+
   // Check if card_faces exist and all have valid image_uris
   const hasValidCardFaces = data.card_faces && data.card_faces.length > 0 && 
     data.card_faces.every(face => face.image_uris?.normal)
   
   const [currentFace, setCurrentFace] = useState(0)
+  const [rotation, setRotation] = useState({ x: 0, y: 0 })
+  const cardRef = useRef<HTMLDivElement>(null)
   
   const currentImageUri = hasValidCardFaces
     ? data.card_faces![currentFace].image_uris?.normal
@@ -46,9 +61,31 @@ const Card = ({ data }: { data: CardProps }) => {
     }
   }
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+
+    const rect = cardRef.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+
+    const rotateY = ((e.clientX - centerX) / rect.width) * 15
+    const rotateX = ((centerY - e.clientY) / rect.height) * 15
+
+    setRotation({ x: rotateX, y: rotateY })
+  }
+
+  const handleMouseLeave = () => {
+    setRotation({ x: 0, y: 0 })
+  }
+
   if (showPlaceholder) {
     return (
-      <div className="w-full relative">
+      <div 
+        ref={cardRef}
+        className="w-full relative"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="w-full aspect-200/280 bg-gray-700 rounded-md flex flex-col items-center justify-center text-white gap-2">
           <span className="text-sm">Image Error</span>
           <button
@@ -73,8 +110,24 @@ const Card = ({ data }: { data: CardProps }) => {
   }
 
   return (
-    <div className="relative w-full">
-      <button className="w-full">
+    <div 
+      ref={cardRef}
+      className="relative w-full"
+      style={{
+        perspective: '1000px',
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button 
+        onClick={handleCardClick}
+        className="cursor-pointer w-full"
+        style={{
+          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.1s ease-out',
+        }}
+      >
         <Image
           loading="lazy"
           src={imageSrc}

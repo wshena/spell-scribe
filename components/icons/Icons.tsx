@@ -1,5 +1,5 @@
 import { FaSearch, FaFilter, FaBell, FaPlus, FaBox, FaAngleRight } from "react-icons/fa";
-import { IoCreateSharp } from "react-icons/io5";
+import { IoCreateSharp, IoBagAdd } from "react-icons/io5";
 import { CgProfile } from "react-icons/cg";
 import { CiMenuFries } from "react-icons/ci";
 import { MdCancel, MdOutlineFlipCameraAndroid } from "react-icons/md";
@@ -10,6 +10,10 @@ interface Icons {
   style?:string
   size: number
   color?: string
+}
+
+export const BagAddIcon: React.FC<Icons> = ({ style, size, color }) => {
+  return <IoBagAdd className={style} size={size} color={color} />;
 }
 
 export const FlipIcon: React.FC<Icons> = ({ style, size, color }) => {
