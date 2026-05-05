@@ -1,9 +1,17 @@
+import { fetcher } from "@/utils/fetcher";
+
 export interface ScryfallSetCardsResponse {
   object: string;
   total_cards: number;
   has_more: boolean;
   next_page?: string;
   data: CardProps[];
+}
+
+export interface ScryfallAutocompleteResponse {
+  object: string;
+  total_values: number;
+  data: string[];
 }
 
 export interface ImageUris {
@@ -117,4 +125,53 @@ export interface CardProps {
   card_faces?: CardFace[];
   flavor_text?: string;
   border_color?: string;
+}
+
+export async function fetchCardAutocomplete(query: string): Promise<ScryfallAutocompleteResponse> {
+  const isClient = typeof window !== "undefined";
+  
+  // Pilih base URL berdasarkan environment
+  const baseURL = isClient 
+    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL 
+    : process.env.SCRYFALL_API_URL;
+
+  const response = await fetcher<ScryfallAutocompleteResponse>(`${baseURL}/cards/autocomplete`, {
+    params: {
+      q: query,
+    },
+    cacheKey: `card-autocomplete:${query}`,
+    revalidate: 60 * 60 * 24,
+    tags: ["scryfall-card-autocomplete"],
+  });
+
+  if (!response || !response.data) {
+    throw new Error("Failed to fetch Scryfall autocomplete results");
+  }
+
+  return response;
+}
+
+export async function fetchCardBaseOnName(name: string): Promise<CardProps> {
+  // Cek apakah window terdefinisi
+  const isClient = typeof window !== "undefined";
+  
+  // Pilih base URL berdasarkan environment
+  const baseURL = isClient 
+    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL 
+    : process.env.SCRYFALL_API_URL;
+
+  const response = await fetcher<CardProps>(`${baseURL}/cards/named`, {
+    params: {
+      fuzzy: name,
+    },
+    cacheKey: `card-named:${name}`,
+    revalidate: 60 * 60 * 24,
+    tags: ["scryfall-card-named"],
+  });
+
+  if (!response || !response.name) {
+    throw new Error("Failed to fetch Scryfall named card results");
+  }
+
+  return response;
 }

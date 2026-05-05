@@ -1,0 +1,429 @@
+import { createClient } from '@/utils/supabase/server'
+import { CardProps } from '@/lib/scryfall/cards'
+import { formatDecks } from '@/lib/constants'
+
+export interface DeckData {
+  id?: string
+  name: string
+  format: string
+  visibility: 'Public' | 'Unlisted' | 'Private'
+  commander?: CardProps | null
+  description?: string
+}
+
+export interface DeckCard {
+  id?: string
+  card_id: string
+  card_name: string
+  quantity: number
+  section: 'main' | 'sideboard' | 'commander' | 'maybeboard'
+}
+
+export interface DeckWithCards extends DeckData {
+  cards: DeckCard[]
+  created_at: string
+  updated_at: string
+}
+
+// CREATE - Create new deck
+export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  // Validate format exists
+  const selectedFormat = formatDecks.find(f => f.name === deckData.format)
+  if (!selectedFormat) {
+    throw new Error('Invalid format selected')
+  }
+
+  // Validate commander requirement
+  if (selectedFormat.commander && !deckData.commander) {
+    throw new Error('Commander is required for this format')
+  }
+
+  // Create deck
+  const { data: deck, error: deckError } = await supabase
+    .from('decks')
+    .insert({
+      user_id: user.id,
+      name: deckData.name,
+      format: deckData.format,
+      visibility: deckData.visibility,
+      commander: deckData.commander || null,
+      description: deckData.description || null,
+    })
+    .select()
+    .single()
+
+  if (deckError) {
+    throw new Error(`Failed to create deck: ${deckError.message}`)
+  }
+
+  // Add cards if provided
+  if (cards.length > 0) {
+    const { error: cardsError } = await supabase
+      .from('deck_cards')
+      .insert(
+        cards.map(card => ({
+          deck_id: deck.id,
+          card_id: card.card_id,
+          card_name: card.card_name,
+          quantity: card.quantity,
+          section: card.section,
+        }))
+      )
+
+    if (cardsError) {
+      // If cards insertion fails, delete the deck
+      await supabase.from('decks').delete().eq('id', deck.id)
+      throw new Error(`Failed to add cards to deck: ${cardsError.message}`)
+    }
+  }
+
+  return deck
+}
+
+// READ - Get deck by ID
+export async function getDeck(deckId: string): Promise<DeckWithCards | null> {
+  const supabase = await createClient()
+
+  // Get deck with cards
+  const { data: deck, error: deckError } = await supabase
+    .from('decks')
+    .select(`
+      *,
+      deck_cards (*)
+    `)
+    .eq('id', deckId)
+    .single()
+
+  if (deckError) {
+    if (deckError.code === 'PGRST116') {
+      return null // Deck not found
+    }
+    throw new Error(`Failed to fetch deck: ${deckError.message}`)
+  }
+
+  return {
+    id: deck.id,
+    name: deck.name,
+    format: deck.format,
+    visibility: deck.visibility,
+    commander: deck.commander,
+    description: deck.description,
+    cards: deck.deck_cards || [],
+    created_at: deck.created_at,
+    updated_at: deck.updated_at,
+  }
+}
+
+// READ - Get user's decks
+export async function getUserDecks(userId?: string) {
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('decks')
+    .select(`
+      *,
+      deck_cards (
+        id,
+        card_id,
+        card_name,
+        quantity,
+        section
+      )
+    `)
+    .order('updated_at', { ascending: false })
+
+  if (userId) {
+    query = query.eq('user_id', userId)
+  } else {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return []
+    }
+
+    query = query.eq('user_id', user.id)
+  }
+
+  const { data: decks, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch decks: ${error.message}`)
+  }
+
+  return decks.map(deck => ({
+    id: deck.id,
+    name: deck.name,
+    format: deck.format,
+    visibility: deck.visibility,
+    commander: deck.commander,
+    description: deck.description,
+    cards: deck.deck_cards || [],
+    created_at: deck.created_at,
+    updated_at: deck.updated_at,
+  }))
+}
+
+// UPDATE - Update deck
+export async function updateDeck(deckId: string, updates: Partial<DeckData>) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  // Validate format if being updated
+  if (updates.format) {
+    const selectedFormat = formatDecks.find(f => f.name === updates.format)
+    if (!selectedFormat) {
+      throw new Error('Invalid format selected')
+    }
+
+    // Check if commander is required
+    if (selectedFormat.commander && !updates.commander) {
+      // Get current deck to check existing commander
+      const currentDeck = await getDeck(deckId)
+      if (!currentDeck?.commander) {
+        throw new Error('Commander is required for this format')
+      }
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('decks')
+    .update({
+      ...(updates.name && { name: updates.name }),
+      ...(updates.format && { format: updates.format }),
+      ...(updates.visibility && { visibility: updates.visibility }),
+      ...(updates.commander !== undefined && { commander: updates.commander }),
+      ...(updates.description !== undefined && { description: updates.description }),
+    })
+    .eq('id', deckId)
+    .eq('user_id', user.id) // Ensure user owns the deck
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update deck: ${error.message}`)
+  }
+
+  return data
+}
+
+// DELETE - Delete deck
+export async function deleteDeck(deckId: string) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  const { error } = await supabase
+    .from('decks')
+    .delete()
+    .eq('id', deckId)
+    .eq('user_id', user.id) // Ensure user owns the deck
+
+  if (error) {
+    throw new Error(`Failed to delete deck: ${error.message}`)
+  }
+
+  return true
+}
+
+// DECK CARDS CRUD
+
+// Add card to deck
+export async function addCardToDeck(deckId: string, card: DeckCard) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  // Verify deck ownership
+  const { data: deck, error: deckError } = await supabase
+    .from('decks')
+    .select('id')
+    .eq('id', deckId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (deckError || !deck) {
+    throw new Error('Deck not found or access denied')
+  }
+
+  const { data, error } = await supabase
+    .from('deck_cards')
+    .upsert({
+      deck_id: deckId,
+      card_id: card.card_id,
+      card_name: card.card_name,
+      quantity: card.quantity,
+      section: card.section,
+    }, {
+      onConflict: 'deck_id,card_id,section'
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to add card to deck: ${error.message}`)
+  }
+
+  return data
+}
+
+// Update card quantity in deck
+export async function updateCardInDeck(deckId: string, cardId: string, section: string, quantity: number) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  if (quantity <= 0) {
+    // Remove card if quantity is 0 or negative
+    return await removeCardFromDeck(deckId, cardId, section)
+  }
+
+  const { data, error } = await supabase
+    .from('deck_cards')
+    .update({ quantity })
+    .eq('deck_id', deckId)
+    .eq('card_id', cardId)
+    .eq('section', section)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update card in deck: ${error.message}`)
+  }
+
+  return data
+}
+
+// Remove card from deck
+export async function removeCardFromDeck(deckId: string, cardId: string, section: string) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  const { error } = await supabase
+    .from('deck_cards')
+    .delete()
+    .eq('deck_id', deckId)
+    .eq('card_id', cardId)
+    .eq('section', section)
+
+  if (error) {
+    throw new Error(`Failed to remove card from deck: ${error.message}`)
+  }
+
+  return true
+}
+
+// Get deck statistics
+export async function getDeckStats(deckId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('deck_cards')
+    .select('section, quantity')
+    .eq('deck_id', deckId)
+
+  if (error) {
+    throw new Error(`Failed to get deck stats: ${error.message}`)
+  }
+
+  const stats = {
+    main: 0,
+    sideboard: 0,
+    commander: 0,
+    maybeboard: 0,
+    total: 0
+  }
+
+  data.forEach(card => {
+    stats[card.section as keyof typeof stats] += card.quantity
+    stats.total += card.quantity
+  })
+
+  return stats
+}
+
+// Validate deck against format rules
+export async function validateDeck(deckId: string) {
+  const supabase = await createClient()
+
+  // Get deck with format
+  const { data: deck, error: deckError } = await supabase
+    .from('decks')
+    .select('format, commander')
+    .eq('id', deckId)
+    .single()
+
+  if (deckError || !deck) {
+    throw new Error('Deck not found')
+  }
+
+  // Get deck statistics
+  const stats = await getDeckStats(deckId)
+
+  // Get format rules
+  const formatRules = formatDecks.find(f => f.name === deck.format)
+
+  if (!formatRules) {
+    throw new Error('Invalid deck format')
+  }
+
+  const errors: string[] = []
+
+  // Check minimum deck size
+  if (stats.main < formatRules.minDeckSize) {
+    errors.push(`Deck must have at least ${formatRules.minDeckSize} cards in main deck`)
+  }
+
+  // Check sideboard size
+  if (stats.sideboard > formatRules.sideboardSize) {
+    errors.push(`Sideboard cannot exceed ${formatRules.sideboardSize} cards`)
+  }
+
+  // Check commander requirement
+  if (formatRules.commander && !deck.commander) {
+    errors.push('This format requires a commander')
+  }
+
+  // Check commander count
+  if (formatRules.commander && stats.commander !== 1) {
+    errors.push('Commander format must have exactly 1 commander')
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    stats
+  }
+}

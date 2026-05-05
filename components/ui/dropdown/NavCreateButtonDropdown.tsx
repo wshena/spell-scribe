@@ -26,8 +26,8 @@ const NavCreateButtonDropdown = ({ onClose }: { onClose: () => void }) => {
       <div className="space-y-1">
         {createItems.map((item) => (
           <CreateItemButton key={item.name} onClick={() => openCreateModal(item)}>
-          <span className="block text-sm font-semibold text-white">{item.name}</span>
-          <span className="block text-sm leading-5 text-slate-400">{item.description}</span>
+            <span className="block text-sm font-semibold text-white">{item.name}</span>
+            <span className="block text-sm leading-5 text-slate-400">{item.description}</span>
           </CreateItemButton>
       ))}
     </div>

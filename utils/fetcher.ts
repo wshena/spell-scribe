@@ -10,6 +10,8 @@ export interface FetcherOptions {
   headers?: Record<string, string>;
   cacheKey?: string;
   cacheTime?: number; // ms
+  revalidate?: number; // seconds
+  tags?: string[]; // For future cache invalidation by tags
 }
 
 export async function fetcher<T = any>(
