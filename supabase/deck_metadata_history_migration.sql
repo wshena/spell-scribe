@@ -1,6 +1,7 @@
 -- Run this on an existing Supabase project to add deck color metadata and deck history.
 
 ALTER TABLE public.deck_cards
+  ADD COLUMN IF NOT EXISTS type_line TEXT,
   ADD COLUMN IF NOT EXISTS colors TEXT[] DEFAULT ARRAY[]::TEXT[],
   ADD COLUMN IF NOT EXISTS color_identity TEXT[] DEFAULT ARRAY[]::TEXT[],
   ADD COLUMN IF NOT EXISTS image_uris JSONB,

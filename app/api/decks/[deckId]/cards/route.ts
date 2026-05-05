@@ -8,6 +8,10 @@ import {
   DeckCard
 } from '@/lib/supabase/decks'
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 // POST /api/decks/[deckId]/cards - Add card to deck
 export async function POST(
   request: NextRequest,
@@ -37,10 +41,10 @@ export async function POST(
       validation
     }, { status: 201 })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error adding card to deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to add card to deck' },
+      { error: getErrorMessage(error, 'Failed to add card to deck') },
       { status: 500 }
     )
   }
@@ -75,10 +79,10 @@ export async function PUT(
       validation
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating card in deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to update card in deck' },
+      { error: getErrorMessage(error, 'Failed to update card in deck') },
       { status: 500 }
     )
   }
@@ -114,10 +118,10 @@ export async function DELETE(
       validation
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error removing card from deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to remove card from deck' },
+      { error: getErrorMessage(error, 'Failed to remove card from deck') },
       { status: 500 }
     )
   }

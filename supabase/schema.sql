@@ -17,6 +17,7 @@ CREATE TABLE public.deck_cards (
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
     card_id VARCHAR(255) NOT NULL, -- Scryfall card ID
     card_name VARCHAR(255) NOT NULL, -- Card name for quick reference
+    type_line TEXT,
     quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
     section VARCHAR(50) NOT NULL DEFAULT 'main' CHECK (section IN ('main', 'sideboard', 'commander', 'maybeboard')),
     colors TEXT[] DEFAULT ARRAY[]::TEXT[],

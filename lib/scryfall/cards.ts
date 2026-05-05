@@ -127,13 +127,16 @@ export interface CardProps {
   border_color?: string;
 }
 
-export async function fetchCardAutocomplete(query: string): Promise<ScryfallAutocompleteResponse> {
+function getScryfallBaseURL() {
   const isClient = typeof window !== "undefined";
-  
-  // Pilih base URL berdasarkan environment
-  const baseURL = isClient 
-    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL 
+
+  return isClient
+    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL
     : process.env.SCRYFALL_API_URL;
+}
+
+export async function fetchCardAutocomplete(query: string): Promise<ScryfallAutocompleteResponse> {
+  const baseURL = getScryfallBaseURL();
 
   const response = await fetcher<ScryfallAutocompleteResponse>(`${baseURL}/cards/autocomplete`, {
     params: {
@@ -152,13 +155,7 @@ export async function fetchCardAutocomplete(query: string): Promise<ScryfallAuto
 }
 
 export async function fetchCardBaseOnName(name: string): Promise<CardProps> {
-  // Cek apakah window terdefinisi
-  const isClient = typeof window !== "undefined";
-  
-  // Pilih base URL berdasarkan environment
-  const baseURL = isClient 
-    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL 
-    : process.env.SCRYFALL_API_URL;
+  const baseURL = getScryfallBaseURL();
 
   const response = await fetcher<CardProps>(`${baseURL}/cards/named`, {
     params: {
@@ -184,10 +181,7 @@ export function isLegalCommanderCard(card: CardProps): boolean {
 }
 
 export async function fetchCommanderCards(query: string): Promise<CardProps[]> {
-  const isClient = typeof window !== "undefined";
-  const baseURL = isClient
-    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL
-    : process.env.SCRYFALL_API_URL;
+  const baseURL = getScryfallBaseURL();
   const cleanQuery = query.trim().replace(/"/g, '\\"');
 
   const response = await fetcher<ScryfallSetCardsResponse>(`${baseURL}/cards/search`, {
@@ -206,4 +200,26 @@ export async function fetchCommanderCards(query: string): Promise<CardProps[]> {
   }
 
   return response.data.filter(isLegalCommanderCard);
+}
+
+export async function fetchCardsByName(query: string): Promise<CardProps[]> {
+  const baseURL = getScryfallBaseURL();
+  const cleanQuery = query.trim().replace(/"/g, '\\"');
+
+  const response = await fetcher<ScryfallSetCardsResponse>(`${baseURL}/cards/search`, {
+    params: {
+      q: `name:"${cleanQuery}"`,
+      unique: "cards",
+      order: "name",
+    },
+    cacheKey: `card-search:${cleanQuery}`,
+    revalidate: 60 * 60 * 24,
+    tags: ["scryfall-card-search"],
+  });
+
+  if (!response || !response.data) {
+    return [];
+  }
+
+  return response.data;
 }

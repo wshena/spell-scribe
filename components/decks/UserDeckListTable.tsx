@@ -172,7 +172,16 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
 
   if (!decks.length) {
     return (
-      <div className="rounded-lg border border-white/10 bg-[#0f1319] p-8 text-center">
+      <div className="text-center">
+        <div className="w-full flex items-center justify-center">
+          <Image
+            src="/image/fblthp.png"
+            alt="No decks"
+            width={100}
+            height={100}
+            className="mb-6 object-contain"
+          />
+        </div>
         <p className="text-lg font-semibold text-white mb-2">No personal decks found</p>
         <p className="text-sm text-slate-400">
           Create your first deck to start tracking cards and commander builds.
@@ -259,7 +268,7 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                     {/* Name */}
                     <td className="px-4 py-4 sm:px-6">
                       <Link
-                        href={`/decks/${deck.id}`}
+                        href={`/deck/${deck.id}`}
                         className="block truncate font-medium text-white hover:text-violet-300 transition"
                         onClick={() => trackDeckHistory(deck.id as string, 'view')}
                       >
@@ -340,7 +349,7 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                             className="fixed w-48 bg-slate-900 border border-white/10 z-50 shadow-2xl shadow-black/40"
                           >
                             <Link
-                              href={`/decks/${deck.id}`}
+                              href={`/deck/${deck.id}`}
                               className="text-left block px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 hover:text-white transition"
                               onClick={() => {
                                 trackDeckHistory(deck.id as string, 'view')
@@ -350,7 +359,7 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                               View Deck
                             </Link>
                             <Link
-                              href={`/decks/${deck.id}`}
+                              href={`/deck/${deck.id}`}
                               className="text-left block px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 hover:text-white transition border-t border-white/5"
                               onClick={() => {
                                 trackDeckHistory(deck.id as string, 'edit')

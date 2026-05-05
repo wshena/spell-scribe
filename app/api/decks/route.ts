@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
             id,
             card_id,
             card_name,
+            type_line,
             quantity,
             section,
             colors,

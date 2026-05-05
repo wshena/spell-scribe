@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDeck, validateDeck, getDeckStats, recordDeckHistory } from '@/lib/supabase/decks'
+import { createClient } from '@/utils/supabase/server'
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -14,6 +15,8 @@ export async function GET(
     const { deckId } = await params
 
     const deck = await getDeck(deckId)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!deck) {
       return NextResponse.json(
@@ -32,6 +35,7 @@ export async function GET(
 
     return NextResponse.json({
       deck,
+      isOwner: Boolean(user && deck.user_id === user.id),
       stats,
       validation
     })

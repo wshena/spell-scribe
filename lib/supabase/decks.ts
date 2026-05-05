@@ -4,6 +4,7 @@ import { formatDecks } from '@/lib/constants'
 
 export interface DeckData {
   id?: string
+  user_id?: string
   name: string
   format: string
   visibility: 'Public' | 'Unlisted' | 'Private'
@@ -15,6 +16,7 @@ export interface DeckCard {
   id?: string
   card_id: string
   card_name: string
+  type_line?: string | null
   quantity: number
   section: 'main' | 'sideboard' | 'commander' | 'maybeboard'
   colors?: string[] | null
@@ -115,6 +117,7 @@ export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
           deck_id: deck.id,
           card_id: card.card_id,
           card_name: card.card_name,
+          type_line: card.type_line || null,
           quantity: card.quantity,
           section: card.section,
           colors: card.colors || null,
@@ -160,6 +163,7 @@ export async function getDeck(deckId: string): Promise<DeckWithCards | null> {
     name: deck.name,
     format: deck.format,
     visibility: deck.visibility,
+    user_id: deck.user_id,
     commander: deck.commander,
     description: deck.description,
     cards: deck.deck_cards || [],
@@ -180,6 +184,7 @@ export async function getUserDecks(userId?: string) {
         id,
         card_id,
         card_name,
+        type_line,
         quantity,
         section,
         colors,
@@ -216,6 +221,7 @@ export async function getUserDecks(userId?: string) {
     name: deck.name,
     format: deck.format,
     visibility: deck.visibility,
+    user_id: deck.user_id,
     commander: deck.commander,
     description: deck.description,
     cards: deck.deck_cards || [],
@@ -319,23 +325,46 @@ export async function addCardToDeck(deckId: string, card: DeckCard) {
     throw new Error('Deck not found or access denied')
   }
 
-  const { data, error } = await supabase
+  const { data: existingCard, error: existingCardError } = await supabase
     .from('deck_cards')
-    .upsert({
-      deck_id: deckId,
-      card_id: card.card_id,
+    .select('id, quantity')
+    .eq('deck_id', deckId)
+    .eq('card_id', card.card_id)
+    .eq('section', card.section)
+    .maybeSingle()
+
+  if (existingCardError) {
+    throw new Error(`Failed to check deck card: ${existingCardError.message}`)
+  }
+
+  const cardPayload = {
       card_name: card.card_name,
-      quantity: card.quantity,
-      section: card.section,
+      type_line: card.type_line || null,
       colors: card.colors || null,
       color_identity: card.color_identity || null,
       image_uris: card.image_uris || null,
       card_faces: card.card_faces || null,
-    }, {
-      onConflict: 'deck_id,card_id,section'
-    })
-    .select()
-    .single()
+  }
+
+  const query = existingCard
+    ? supabase
+      .from('deck_cards')
+      .update({
+        ...cardPayload,
+        quantity: existingCard.quantity + card.quantity,
+      })
+      .eq('id', existingCard.id)
+    : supabase
+      .from('deck_cards')
+      .insert({
+        deck_id: deckId,
+        card_id: card.card_id,
+        quantity: card.quantity,
+        section: card.section,
+        ...cardPayload,
+      })
+
+  const { data, error } = await query.select().single()
 
   if (error) {
     throw new Error(`Failed to add card to deck: ${error.message}`)
@@ -556,6 +585,7 @@ export async function getUserDeckHistory(limit = 8): Promise<DeckHistoryItem[]> 
           id,
           card_id,
           card_name,
+          type_line,
           quantity,
           section,
           colors,

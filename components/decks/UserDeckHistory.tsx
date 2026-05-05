@@ -43,7 +43,7 @@ export default async function UserDeckHistory({ history }: UserDeckHistoryProps)
           return (
             <Link
               key={item.id}
-              href={`/decks/${item.deck_id}`}
+              href={`/deck/${item.deck_id}`}
               className="group grid grid-cols-[86px_1fr] gap-4 border border-white/10 bg-[#0f1319] p-3 transition hover:border-violet-400/50 hover:bg-[#151b24]"
             >
               <div className="aspect-[63/88] overflow-hidden bg-slate-900">

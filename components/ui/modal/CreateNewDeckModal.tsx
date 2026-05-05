@@ -96,6 +96,7 @@ const CreateNewDeckModal = () => {
         cards.push({
           card_id: formData.commander.id,
           card_name: formData.commander.name,
+          type_line: formData.commander.type_line,
           quantity: 1,
           section: 'commander',
           colors: formData.commander.colors || null,
@@ -131,7 +132,7 @@ const CreateNewDeckModal = () => {
       closeModal()
 
       // Redirect to the new deck page
-      router.push(`/decks/${result.deck.id}`)
+      router.push(`/deck/${result.deck.id}`)
 
     } catch (error: unknown) {
       console.error('Error creating deck:', error)
