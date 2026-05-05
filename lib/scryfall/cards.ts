@@ -175,3 +175,35 @@ export async function fetchCardBaseOnName(name: string): Promise<CardProps> {
 
   return response;
 }
+
+export function isLegalCommanderCard(card: CardProps): boolean {
+  return (
+    card.legalities?.commander === "legal" &&
+    card.type_line.toLowerCase().includes("legendary")
+  );
+}
+
+export async function fetchCommanderCards(query: string): Promise<CardProps[]> {
+  const isClient = typeof window !== "undefined";
+  const baseURL = isClient
+    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL
+    : process.env.SCRYFALL_API_URL;
+  const cleanQuery = query.trim().replace(/"/g, '\\"');
+
+  const response = await fetcher<ScryfallSetCardsResponse>(`${baseURL}/cards/search`, {
+    params: {
+      q: `name:"${cleanQuery}" legal:commander t:legendary`,
+      unique: "cards",
+      order: "name",
+    },
+    cacheKey: `commander-search:${cleanQuery}`,
+    revalidate: 60 * 60 * 24,
+    tags: ["scryfall-commander-search"],
+  });
+
+  if (!response || !response.data) {
+    return [];
+  }
+
+  return response.data.filter(isLegalCommanderCard);
+}

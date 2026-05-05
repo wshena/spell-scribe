@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { CardProps, fetchCardAutocomplete, fetchCardBaseOnName } from '@/lib/scryfall/cards'
+import { CardProps, fetchCommanderCards, isLegalCommanderCard } from '@/lib/scryfall/cards'
 
 interface CommanderSearchProps {
   onSelectCommander: (commander: CardProps | null) => void
@@ -11,7 +11,7 @@ interface CommanderSearchProps {
 
 const CommanderSearch = ({ onSelectCommander, selectedCommander }: CommanderSearchProps) => {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<string[]>([])
+  const [results, setResults] = useState<CardProps[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSelecting, setIsSelecting] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -37,8 +37,8 @@ const CommanderSearch = ({ onSelectCommander, selectedCommander }: CommanderSear
 
       setIsLoading(true)
       try {
-        const response = await fetchCardAutocomplete(query)
-        setResults(response.data.slice(0, 10))
+        const cards = await fetchCommanderCards(query)
+        setResults(cards.slice(0, 10))
       } catch (error) {
         console.error('Error searching commander names:', error)
         setResults([])
@@ -51,18 +51,16 @@ const CommanderSearch = ({ onSelectCommander, selectedCommander }: CommanderSear
     return () => clearTimeout(debounceTimer)
   }, [query])
 
-  const handleSelectCommander = async (commanderName: string) => {
-    setIsSelecting(true)
-    try {
-      const card = await fetchCardBaseOnName(commanderName)
-      onSelectCommander(card)
-      setQuery(card.name)
-      setShowResults(false)
-    } catch (error) {
-      console.error('Error fetching commander card:', error)
-    } finally {
-      setIsSelecting(false)
+  const handleSelectCommander = (card: CardProps) => {
+    if (!isLegalCommanderCard(card)) {
+      return
     }
+
+    setIsSelecting(true)
+    onSelectCommander(card)
+    setQuery(card.name)
+    setShowResults(false)
+    setIsSelecting(false)
   }
 
   const handleClearCommander = () => {
@@ -104,14 +102,15 @@ const CommanderSearch = ({ onSelectCommander, selectedCommander }: CommanderSear
           {isLoading ? (
             <div className="px-3 py-2 text-slate-400 text-sm">Searching...</div>
           ) : results.length > 0 ? (
-            results.map((name) => (
+            results.map((card) => (
               <button
-                key={name}
-                onClick={() => handleSelectCommander(name)}
+                key={card.id}
+                onClick={() => handleSelectCommander(card)}
                 className="cursor-pointer w-full px-3 py-2 text-left hover:bg-slate-700"
                 disabled={isSelecting}
               >
-                <span className="text-white text-sm truncate">{name}</span>
+                <span className="block text-white text-sm truncate">{card.name}</span>
+                <span className="block text-slate-400 text-xs truncate">{card.type_line}</span>
               </button>
             ))
           ) : query.length >= 2 ? (

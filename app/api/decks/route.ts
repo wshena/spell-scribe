@@ -3,7 +3,6 @@ import { createClient } from '@/utils/supabase/server'
 import {
   createDeck,
   getUserDecks,
-  getDeck,
   updateDeck,
   deleteDeck,
   validateDeck,
@@ -11,11 +10,14 @@ import {
   DeckCard
 } from '@/lib/supabase/decks'
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 // GET /api/decks - Get user's decks or public decks
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
@@ -32,7 +34,11 @@ export async function GET(request: NextRequest) {
             card_id,
             card_name,
             quantity,
-            section
+            section,
+            colors,
+            color_identity,
+            image_uris,
+            card_faces
           )
         `)
         .eq('visibility', 'Public')
@@ -81,10 +87,10 @@ export async function POST(request: NextRequest) {
       validation
     }, { status: 201 })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create deck' },
+      { error: getErrorMessage(error, 'Failed to create deck') },
       { status: 500 }
     )
   }
@@ -116,10 +122,10 @@ export async function PUT(request: NextRequest) {
       validation
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to update deck' },
+      { error: getErrorMessage(error, 'Failed to update deck') },
       { status: 500 }
     )
   }
@@ -142,10 +148,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to delete deck' },
+      { error: getErrorMessage(error, 'Failed to delete deck') },
       { status: 500 }
     )
   }

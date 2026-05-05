@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDeck, validateDeck, getDeckStats } from '@/lib/supabase/decks'
+import { getDeck, validateDeck, getDeckStats, recordDeckHistory } from '@/lib/supabase/decks'
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
 
 // GET /api/decks/[deckId] - Get single deck by ID
 export async function GET(
@@ -18,6 +22,8 @@ export async function GET(
       )
     }
 
+    await recordDeckHistory(deckId, 'view')
+
     // Get deck statistics
     const stats = await getDeckStats(deckId)
 
@@ -30,10 +36,10 @@ export async function GET(
       validation
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch deck' },
+      { error: getErrorMessage(error, 'Failed to fetch deck') },
       { status: 500 }
     )
   }
@@ -55,10 +61,10 @@ export async function POST(
       stats
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to validate deck' },
+      { error: getErrorMessage(error, 'Failed to validate deck') },
       { status: 500 }
     )
   }

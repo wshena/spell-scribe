@@ -8,7 +8,7 @@ export interface DeckData {
   format: string
   visibility: 'Public' | 'Unlisted' | 'Private'
   commander?: CardProps | null
-  description?: string
+  description?: string | null
 }
 
 export interface DeckCard {
@@ -17,12 +17,54 @@ export interface DeckCard {
   card_name: string
   quantity: number
   section: 'main' | 'sideboard' | 'commander' | 'maybeboard'
+  colors?: string[] | null
+  color_identity?: string[] | null
+  image_uris?: CardProps['image_uris'] | null
+  card_faces?: CardProps['card_faces'] | null
 }
 
 export interface DeckWithCards extends DeckData {
   cards: DeckCard[]
   created_at: string
   updated_at: string
+}
+
+export interface DeckHistoryItem {
+  id: string
+  deck_id: string
+  action: 'view' | 'edit'
+  access_count: number
+  last_accessed_at: string
+  deck: DeckWithCards
+}
+
+type RawDeckHistoryRow = {
+  id: string
+  deck_id: string
+  action: 'view' | 'edit'
+  access_count: number
+  last_accessed_at: string
+  decks: {
+    id: string
+    name: string
+    format: string
+    visibility: 'Public' | 'Unlisted' | 'Private'
+    commander: CardProps | null
+    description: string | null
+    deck_cards: DeckCard[] | null
+    created_at: string
+    updated_at: string
+  } | Array<{
+    id: string
+    name: string
+    format: string
+    visibility: 'Public' | 'Unlisted' | 'Private'
+    commander: CardProps | null
+    description: string | null
+    deck_cards: DeckCard[] | null
+    created_at: string
+    updated_at: string
+  }>
 }
 
 // CREATE - Create new deck
@@ -75,6 +117,10 @@ export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
           card_name: card.card_name,
           quantity: card.quantity,
           section: card.section,
+          colors: card.colors || null,
+          color_identity: card.color_identity || null,
+          image_uris: card.image_uris || null,
+          card_faces: card.card_faces || null,
         }))
       )
 
@@ -135,7 +181,11 @@ export async function getUserDecks(userId?: string) {
         card_id,
         card_name,
         quantity,
-        section
+        section,
+        colors,
+        color_identity,
+        image_uris,
+        card_faces
       )
     `)
     .order('updated_at', { ascending: false })
@@ -277,6 +327,10 @@ export async function addCardToDeck(deckId: string, card: DeckCard) {
       card_name: card.card_name,
       quantity: card.quantity,
       section: card.section,
+      colors: card.colors || null,
+      color_identity: card.color_identity || null,
+      image_uris: card.image_uris || null,
+      card_faces: card.card_faces || null,
     }, {
       onConflict: 'deck_id,card_id,section'
     })
@@ -426,4 +480,119 @@ export async function validateDeck(deckId: string) {
     errors,
     stats
   }
+}
+
+export async function recordDeckHistory(deckId: string, action: 'view' | 'edit' = 'view') {
+  const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return null
+  }
+
+  const { data: existing } = await supabase
+    .from('deck_history')
+    .select('id, access_count')
+    .eq('user_id', user.id)
+    .eq('deck_id', deckId)
+    .maybeSingle()
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('deck_history')
+      .update({
+        action,
+        access_count: (existing.access_count || 0) + 1,
+        last_accessed_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select()
+      .single()
+
+    if (error) {
+      throw new Error(`Failed to record deck history: ${error.message}`)
+    }
+
+    return data
+  }
+
+  const { data, error } = await supabase
+    .from('deck_history')
+    .insert({
+      user_id: user.id,
+      deck_id: deckId,
+      action,
+      access_count: 1,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to record deck history: ${error.message}`)
+  }
+
+  return data
+}
+
+export async function getUserDeckHistory(limit = 8): Promise<DeckHistoryItem[]> {
+  const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('deck_history')
+    .select(`
+      id,
+      deck_id,
+      action,
+      access_count,
+      last_accessed_at,
+      decks (
+        *,
+        deck_cards (
+          id,
+          card_id,
+          card_name,
+          quantity,
+          section,
+          colors,
+          color_identity,
+          image_uris,
+          card_faces
+        )
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('last_accessed_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    throw new Error(`Failed to fetch deck history: ${error.message}`)
+  }
+
+  return ((data || []) as unknown as RawDeckHistoryRow[]).map((item) => {
+    const deck = Array.isArray(item.decks) ? item.decks[0] : item.decks
+
+    return {
+      id: item.id,
+      deck_id: item.deck_id,
+      action: item.action,
+      access_count: item.access_count,
+      last_accessed_at: item.last_accessed_at,
+      deck: {
+        id: deck.id,
+        name: deck.name,
+        format: deck.format,
+        visibility: deck.visibility,
+        commander: deck.commander,
+        description: deck.description,
+        cards: deck.deck_cards || [],
+        created_at: deck.created_at,
+        updated_at: deck.updated_at,
+      },
+    }
+  })
 }

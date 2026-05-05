@@ -9,10 +9,53 @@ import { fetchCardRulings, RulingResponse } from "@/lib/scryfall/rulings";
 import {
   getManaSymbolMap,
   getManaCostSymbolsFromMap,
-  parseManaSymbols,
   tokenizeManaText,
   ManaSymbolInfo,
 } from "@/lib/scryfall/manaSymbols";
+
+const legalityLabels: Record<string, string> = {
+  standard: "Standard",
+  future: "Future",
+  historic: "Historic",
+  timeless: "Timeless",
+  gladiator: "Gladiator",
+  pioneer: "Pioneer",
+  modern: "Modern",
+  legacy: "Legacy",
+  pauper: "Pauper",
+  vintage: "Vintage",
+  penny: "Penny",
+  commander: "Commander",
+  oathbreaker: "Oathbreaker",
+  standardbrawl: "Standard Brawl",
+  brawl: "Brawl",
+  alchemy: "Alchemy",
+  paupercommander: "Pauper Commander",
+  duel: "Duel",
+  oldschool: "Old School",
+  premodern: "Premodern",
+  predh: "PreDH",
+  tlr: "TLR",
+};
+
+const legalityStyles: Record<string, { icon: string; className: string }> = {
+  legal: {
+    icon: "L",
+    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  },
+  not_legal: {
+    icon: "N",
+    className: "border-slate-600 bg-slate-800/70 text-slate-400",
+  },
+  banned: {
+    icon: "B",
+    className: "border-red-500/30 bg-red-500/10 text-red-300",
+  },
+  restricted: {
+    icon: "R",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  },
+};
 
 const CardDetailModal = ({ card }: { card: CardProps }) => {
   const closeModal = useUtilityStore((state) => state.closeModal);
@@ -92,7 +135,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
     setRotation({ x: 0, y: 0 });
   };
 
-  const formatPrice = (value: string | null) => (value ? `$${value}` : "-");
+  const legalityEntries = Object.entries(card.legalities);
 
   const [cardRulings, setCardRulings] = useState<RulingResponse | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(true);
@@ -324,6 +367,33 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
                   {powerToughness || "-"}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* legalities */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-bold text-white">Legalities</h2>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              {legalityEntries.map(([format, status]) => {
+                const statusStyle = legalityStyles[status] || legalityStyles.not_legal;
+
+                return (
+                  <div
+                    key={format}
+                    className={`flex items-center justify-between gap-2 border px-3 py-2 text-xs ${statusStyle.className}`}
+                  >
+                    <span className="truncate font-medium text-slate-100">
+                      {legalityLabels[format] || format}
+                    </span>
+                    <span
+                      title={status.replace("_", " ")}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px] font-bold uppercase"
+                    >
+                      {statusStyle.icon}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

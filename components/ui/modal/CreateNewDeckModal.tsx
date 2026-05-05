@@ -6,8 +6,7 @@ import { useUtilityStore } from "@/lib/zustand/utilityStore"
 import { CancelIcon } from "../../icons/Icons"
 import { formatDecks } from "@/lib/constants"
 import CommanderSearch from "./CommanderSearch"
-import { CardProps } from '@/lib/scryfall/cards'
-import { createSlug } from '@/lib/utils'
+import { CardProps, isLegalCommanderCard } from '@/lib/scryfall/cards'
 
 type Visibility = 'Public' | 'Unlisted' | 'Private'
 
@@ -32,16 +31,6 @@ const CreateNewDeckModal = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
-
-  // Generate unique ID with uppercase, lowercase, and numbers
-  const generateUniqueId = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let result = ''
-    for (let i = 0; i < 16; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return result
-  }
 
   const selectedFormat = formatDecks.find(f => f.name === formData.format)
 
@@ -73,6 +62,10 @@ const CreateNewDeckModal = () => {
       newErrors.commander = 'Commander is required for this format'
     }
 
+    if (formData.commander && !isLegalCommanderCard(formData.commander)) {
+      newErrors.commander = 'Commander must be commander-legal and have Legendary in its type line'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -88,9 +81,6 @@ const CreateNewDeckModal = () => {
     setErrors({})
 
     try {
-      // Generate unique ID
-      const deckId = generateUniqueId()
-
       // Prepare deck data
       const deckData = {
         name: formData.name.trim(),
@@ -107,7 +97,11 @@ const CreateNewDeckModal = () => {
           card_id: formData.commander.id,
           card_name: formData.commander.name,
           quantity: 1,
-          section: 'commander'
+          section: 'commander',
+          colors: formData.commander.colors || null,
+          color_identity: formData.commander.color_identity || null,
+          image_uris: formData.commander.image_uris || formData.commander.card_faces?.[0]?.image_uris || null,
+          card_faces: formData.commander.card_faces || null,
         })
       }
 
@@ -139,9 +133,11 @@ const CreateNewDeckModal = () => {
       // Redirect to the new deck page
       router.push(`/decks/${result.deck.id}`)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating deck:', error)
-      setErrors({ submit: error.message || 'Unable to create deck. Please try again.' })
+      setErrors({
+        submit: error instanceof Error ? error.message : 'Unable to create deck. Please try again.'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -226,10 +222,15 @@ const CreateNewDeckModal = () => {
 
           {/* Commander Search - Only show if format requires commander */}
           {selectedFormat?.commander && (
-            <CommanderSearch
-              onSelectCommander={(commander) => handleInputChange('commander', commander)}
-              selectedCommander={formData.commander}
-            />
+            <div>
+              <CommanderSearch
+                onSelectCommander={(commander) => handleInputChange('commander', commander)}
+                selectedCommander={formData.commander}
+              />
+              {errors.commander && (
+                <p className="mt-1 text-sm text-red-400">{errors.commander}</p>
+              )}
+            </div>
           )}
 
           {/* Visibility */}

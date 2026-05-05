@@ -7,7 +7,7 @@ const page = () => {
     <main className="w-full bg-[#0b0f14] pt-28 pb-16">
       <ContentContainer>
         {/* header */}
-        <div className="space-y-3">
+        <div className="space-y-3 pb-5 border-b border-b-white/10">
           <section className="text-white">
             <p className="text-sm uppercase tracking-[0.24em] text-violet-300">Your Deck</p>
             <h1 className="mt-3 text-3xl font-semibold">Deck Collections</h1>
@@ -22,7 +22,7 @@ const page = () => {
         </div>
 
         {/* deck list */}
-        <div className="my-7">
+        <div className="my-10">
           <UserDeckList />
         </div>
       </ContentContainer>

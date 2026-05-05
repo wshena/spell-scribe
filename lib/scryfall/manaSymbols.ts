@@ -50,6 +50,23 @@ export async function getManaSymbolMap(): Promise<Map<string, string>> {
 }
 
 /**
+ * Fetch mana symbol SVGs for deck color identity display.
+ */
+export async function getManaColorSymbolMap(): Promise<Map<string, string>> {
+  const symbolMap = await getManaSymbolMap();
+  const colorSymbolMap = new Map<string, string>();
+
+  ['W', 'U', 'B', 'R', 'G', 'C'].forEach((color) => {
+    const svgUri = symbolMap.get(`{${color}}`);
+    if (svgUri) {
+      colorSymbolMap.set(color, svgUri);
+    }
+  });
+
+  return colorSymbolMap;
+}
+
+/**
  * Tokenize text and convert mana symbols inside it into token objects.
  */
 export function tokenizeManaText(text: string, symbolMap: Map<string, string>): ManaTextToken[] {

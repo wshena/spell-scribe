@@ -19,11 +19,28 @@ CREATE TABLE public.deck_cards (
     card_name VARCHAR(255) NOT NULL, -- Card name for quick reference
     quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
     section VARCHAR(50) NOT NULL DEFAULT 'main' CHECK (section IN ('main', 'sideboard', 'commander', 'maybeboard')),
+    colors TEXT[] DEFAULT ARRAY[]::TEXT[],
+    color_identity TEXT[] DEFAULT ARRAY[]::TEXT[],
+    image_uris JSONB,
+    card_faces JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
 
     -- Ensure unique card per deck per section
     UNIQUE(deck_id, card_id, section)
+);
+
+-- Create deck_history table for recent deck activity
+CREATE TABLE public.deck_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    action VARCHAR(20) NOT NULL DEFAULT 'view' CHECK (action IN ('view', 'edit')),
+    access_count INTEGER NOT NULL DEFAULT 1 CHECK (access_count > 0),
+    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+
+    UNIQUE(user_id, deck_id)
 );
 
 -- Create indexes for better performance
@@ -32,10 +49,13 @@ CREATE INDEX idx_decks_format ON public.decks(format);
 CREATE INDEX idx_decks_visibility ON public.decks(visibility);
 CREATE INDEX idx_deck_cards_deck_id ON public.deck_cards(deck_id);
 CREATE INDEX idx_deck_cards_section ON public.deck_cards(section);
+CREATE INDEX idx_deck_history_user_last_accessed ON public.deck_history(user_id, last_accessed_at DESC);
+CREATE INDEX idx_deck_history_deck_id ON public.deck_history(deck_id);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE public.decks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deck_cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deck_history ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for decks
 CREATE POLICY "Users can view public decks" ON public.decks
@@ -72,6 +92,19 @@ CREATE POLICY "Users can manage cards in their own decks" ON public.deck_cards
         )
     );
 
+-- RLS Policies for deck_history
+CREATE POLICY "Users can view their own deck history" ON public.deck_history
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own deck history" ON public.deck_history
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own deck history" ON public.deck_history
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own deck history" ON public.deck_history
+    FOR DELETE USING (auth.uid() = user_id);
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -89,6 +122,27 @@ CREATE TRIGGER handle_decks_updated_at
 CREATE TRIGGER handle_deck_cards_updated_at
     BEFORE UPDATE ON public.deck_cards
     FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
+-- Function to record recent deck activity for a user
+CREATE OR REPLACE FUNCTION public.record_deck_history(
+    p_deck_id UUID,
+    p_action VARCHAR DEFAULT 'view'
+) RETURNS public.deck_history AS $$
+DECLARE
+    history_row public.deck_history;
+BEGIN
+    INSERT INTO public.deck_history (user_id, deck_id, action, access_count, last_accessed_at)
+    VALUES (auth.uid(), p_deck_id, p_action, 1, TIMEZONE('utc'::text, NOW()))
+    ON CONFLICT (user_id, deck_id)
+    DO UPDATE SET
+        action = EXCLUDED.action,
+        access_count = public.deck_history.access_count + 1,
+        last_accessed_at = EXCLUDED.last_accessed_at
+    RETURNING * INTO history_row;
+
+    RETURN history_row;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to validate deck format rules
 CREATE OR REPLACE FUNCTION public.validate_deck_format(

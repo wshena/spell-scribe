@@ -5,11 +5,16 @@ import { CiMenuFries } from "react-icons/ci";
 import { MdCancel, MdOutlineFlipCameraAndroid } from "react-icons/md";
 import { BsStack } from "react-icons/bs";
 import { TbCardsFilled } from "react-icons/tb";
+import { SlOptionsVertical } from "react-icons/sl";
 
 interface Icons {
   style?:string
   size: number
   color?: string
+}
+
+export const OptionsIcon: React.FC<Icons> = ({ style, size, color }) => {
+  return <SlOptionsVertical className={style} size={size} color={color} />;
 }
 
 export const BagAddIcon: React.FC<Icons> = ({ style, size, color }) => {
