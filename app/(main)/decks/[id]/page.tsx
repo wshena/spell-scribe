@@ -7,7 +7,8 @@ import { useUtilityStore } from '@/lib/zustand/utilityStore'
 import { CardProps, fetchCardsByName } from '@/lib/scryfall/cards'
 import { formatDecks } from '@/lib/constants'
 import ContentContainer from '@/components/ui/containers/ContentContainer'
-import { SearchIcon } from '@/components/icons/Icons'
+import { SearchIcon, OptionsIcon } from '@/components/icons/Icons'
+import CardDetailModal from '@/components/ui/modal/CardDetailModal'
 
 interface DeckCard {
   id: string
@@ -58,6 +59,27 @@ function getSearchCardImage(card: CardProps) {
   return card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || null
 }
 
+function isCommanderCandidate(card: DeckCard, formatInfo?: { commander: boolean }) {
+  if (!formatInfo?.commander) return false
+  const typeLine = card.type_line?.toLowerCase() || ''
+  return (
+    (typeLine.includes('legendary') && typeLine.includes('creature')) ||
+    typeLine.includes('planeswalker')
+  )
+}
+
+function deckCardToCardProps(card: DeckCard): CardProps {
+  return {
+    id: card.card_id,
+    name: card.card_name,
+    type_line: card.type_line || undefined,
+    image_uris: card.image_uris || undefined,
+    card_faces: card.card_faces || undefined,
+    colors: card.colors || undefined,
+    color_identity: card.color_identity || undefined,
+  } as CardProps
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
@@ -66,6 +88,7 @@ const DeckPage = () => {
   const params = useParams()
   const router = useRouter()
   const setAlert = useUtilityStore((state) => state.setAlert)
+  const openModal = useUtilityStore((state) => state.openModal)
   const searchRef = useRef<HTMLDivElement>(null)
 
   const [deck, setDeck] = useState<DeckData | null>(null)
@@ -78,6 +101,12 @@ const DeckPage = () => {
   const [addingCardId, setAddingCardId] = useState<string | null>(null)
   const [removingCardId, setRemovingCardId] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [hoveredCard, setHoveredCard] = useState<DeckCard | null>(null)
+  const [cardMenuId, setCardMenuId] = useState<string | null>(null)
+  const [quantityModalCard, setQuantityModalCard] = useState<DeckCard | null>(null)
+  const [quantityInput, setQuantityInput] = useState(1)
+  const [deckCoverCard, setDeckCoverCard] = useState<DeckCard | null>(null)
+  const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const deckId = params.id as string
 
@@ -122,11 +151,18 @@ const DeckPage = () => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowResults(false)
       }
+
+      if (cardMenuId) {
+        const menuElement = cardMenuRefs.current[cardMenuId]
+        if (menuElement && !menuElement.contains(event.target as Node)) {
+          setCardMenuId(null)
+        }
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [cardMenuId])
 
   useEffect(() => {
     const searchCards = async () => {
@@ -176,8 +212,11 @@ const DeckPage = () => {
 
   const formatInfo = deck ? formatDecks.find((format) => format.name === deck.format) : null
   const commanderCard = deck?.cards.find((card) => card.section === 'commander')
-  const coverImage = getImageUri(deck?.cards[0]) || getImageUri(deck?.commander)
+  const coverImage = getImageUri(deckCoverCard) || getImageUri(deck?.cards[0]) || getImageUri(deck?.commander)
   const commanderImage = getImageUri(commanderCard) || getImageUri(deck?.commander)
+  const previewCard = hoveredCard || deckCoverCard || deck?.commander
+  const previewName = hoveredCard?.card_name || deckCoverCard?.card_name || deck?.commander?.name || 'Deck preview'
+  const previewLabel = hoveredCard ? 'Hovered card' : deckCoverCard ? 'Deck image' : deck?.commander ? 'Commander preview' : 'Deck preview'
 
   const handleAddCard = async (card: CardProps) => {
     if (!deck) return
@@ -223,6 +262,154 @@ const DeckPage = () => {
     } finally {
       setAddingCardId(null)
     }
+  }
+
+  const handleUpdateCardQuantity = async (card: DeckCard, quantity: number) => {
+    if (!deck) return
+
+    try {
+      const response = await fetch(`/api/decks/${deck.id}/cards`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cardId: card.card_id,
+          section: card.section,
+          quantity,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || 'Failed to update card quantity')
+      }
+
+      await fetchDeck()
+    } catch (err: unknown) {
+      setAlert({
+        label: getErrorMessage(err, 'Failed to update card'),
+        type: 'error',
+      })
+    }
+  }
+
+  const handleAddOne = async (card: DeckCard) => {
+    await handleUpdateCardQuantity(card, card.quantity + 1)
+    setCardMenuId(null)
+  }
+
+  const handleAddMore = (card: DeckCard) => {
+    setQuantityModalCard(card)
+    setQuantityInput(1)
+    setCardMenuId(null)
+  }
+
+  const handleConfirmAddMore = async () => {
+    if (!quantityModalCard) return
+    await handleUpdateCardQuantity(quantityModalCard, quantityModalCard.quantity + quantityInput)
+    setQuantityModalCard(null)
+  }
+
+  const handleAddToWishlist = (card: DeckCard) => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('spellscribe:wishlist') : null
+    const wishlist = stored ? JSON.parse(stored) : []
+    const exists = wishlist.some((item: { id: string }) => item.id === card.card_id)
+
+    if (exists) {
+      setAlert({ label: `${card.card_name} is already in your wishlist`, type: 'info' })
+      setCardMenuId(null)
+      return
+    }
+
+    wishlist.unshift({
+      id: card.card_id,
+      name: card.card_name,
+      image_uris: card.image_uris || null,
+      card_faces: card.card_faces || null,
+      section: card.section,
+    })
+    localStorage.setItem('spellscribe:wishlist', JSON.stringify(wishlist))
+    setAlert({ label: `${card.card_name} added to wishlist`, type: 'success' })
+    setCardMenuId(null)
+  }
+
+  const handleAddToCollection = (card: DeckCard) => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('spellscribe:collection') : null
+    const collection = stored ? JSON.parse(stored) : []
+    const exists = collection.some((item: { id: string }) => item.id === card.card_id)
+
+    if (exists) {
+      setAlert({ label: `${card.card_name} is already in your collection`, type: 'info' })
+      setCardMenuId(null)
+      return
+    }
+
+    collection.unshift({
+      id: card.card_id,
+      name: card.card_name,
+      image_uris: card.image_uris || null,
+      card_faces: card.card_faces || null,
+      section: card.section,
+    })
+    localStorage.setItem('spellscribe:collection', JSON.stringify(collection))
+    setAlert({ label: `${card.card_name} added to collection`, type: 'success' })
+    setCardMenuId(null)
+  }
+
+  const handleViewDetails = (card: DeckCard) => {
+    openModal(<CardDetailModal card={deckCardToCardProps(card)} />)
+    setCardMenuId(null)
+  }
+
+  const handleCopyCardName = async (card: DeckCard) => {
+    try {
+      await navigator.clipboard.writeText(card.card_name)
+      setAlert({ label: `${card.card_name} copied to clipboard`, type: 'success' })
+    } catch {
+      setAlert({ label: 'Unable to copy card name', type: 'error' })
+    } finally {
+      setCardMenuId(null)
+    }
+  }
+
+  const handleSetAsCommander = async (card: DeckCard) => {
+    if (!deck) return
+    if (!isCommanderCandidate(card, formatInfo || undefined)) {
+      setAlert({ label: 'Card is not legal as commander', type: 'error' })
+      setCardMenuId(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/decks/${deck.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commander: deckCardToCardProps(card),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || 'Failed to set commander')
+      }
+
+      setAlert({ label: `${card.card_name} is now the commander`, type: 'success' })
+      await fetchDeck()
+    } catch (err: unknown) {
+      setAlert({ label: getErrorMessage(err, 'Failed to set commander'), type: 'error' })
+    } finally {
+      setCardMenuId(null)
+    }
+  }
+
+  const handleSetDeckImage = (card: DeckCard) => {
+    setDeckCoverCard(card)
+    setAlert({ label: `${card.card_name} set as deck cover`, type: 'success' })
+    setCardMenuId(null)
   }
 
   const handleRemoveCard = async (card: DeckCard) => {
@@ -353,6 +540,27 @@ const DeckPage = () => {
             )}
 
             <section className="border border-white/10 bg-[#10161f] p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Preview</p>
+              {previewCard ? (
+                <div>
+                  <div className="aspect-63/88 overflow-hidden rounded-lg bg-slate-900">
+                    {getImageUri(previewCard) ? (
+                      <img src={getImageUri(previewCard) ?? ''} alt={previewName} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-slate-500">No image available</div>
+                    )}
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-white truncate">{previewName}</p>
+                  <p className="mt-1 text-xs text-slate-400">{previewLabel}</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-600 p-6 text-center text-sm text-slate-500">
+                  Hover a card to preview it here.
+                </div>
+              )}
+            </section>
+
+            <section className="border border-white/10 bg-[#10161f] p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Deck Stats</p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between gap-4">
@@ -447,7 +655,12 @@ const DeckPage = () => {
                         const image = getImageUri(card)
 
                         return (
-                          <div key={card.id} className="grid grid-cols-[42px_1fr_auto] items-center gap-3 px-4 py-3">
+                          <div
+                            key={card.id}
+                            className="relative grid grid-cols-[42px_1fr_auto] items-center gap-3 px-4 py-3 overflow-visible"
+                            onMouseEnter={() => setHoveredCard(card)}
+                            onMouseLeave={() => setHoveredCard((current) => (current?.id === card.id ? null : current))}
+                          >
                             <div className="h-14 w-10 overflow-hidden bg-slate-900">
                               {image ? (
                                 <img src={image} alt="" className="h-full w-full object-cover" />
@@ -462,15 +675,96 @@ const DeckPage = () => {
                               </div>
                               <p className="mt-1 truncate text-xs text-slate-500">{card.type_line || 'Unknown type'}</p>
                             </div>
-                            {isOwner && card.section !== 'commander' && (
-                              <button
-                                type="button"
-                                disabled={removingCardId === card.id}
-                                onClick={() => handleRemoveCard(card)}
-                                className="cursor-pointer text-xs font-medium text-red-400 transition hover:text-red-300 disabled:cursor-wait disabled:opacity-60"
-                              >
-                                Remove
-                              </button>
+                            {isOwner && (
+                              <div className="relative z-10">
+                                <button
+                                  type="button"
+                                  onClick={() => setCardMenuId((current) => (current === card.id ? null : card.id))}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-violet-500 hover:text-white"
+                                >
+                                  <OptionsIcon size={16} />
+                                </button>
+
+                                {cardMenuId === card.id && (
+                                  <div
+                                    ref={(el) => {
+                                      cardMenuRefs.current[card.id] = el
+                                    }}
+                                    className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-white/10 bg-[#10161f] p-2 shadow-2xl shadow-black/50"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddOne(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Add one
+                                      <span className="text-slate-500">+1</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddMore(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Add more
+                                      <span className="text-slate-500">Custom</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddToWishlist(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Add to wishlist
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddToCollection(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Add to collection
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleViewDetails(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      View details
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyCardName(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Copy name
+                                    </button>
+                                    {card.section !== 'commander' && isCommanderCandidate(card, formatInfo || undefined) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetAsCommander(card)}
+                                        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                      >
+                                        Set as commander
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetDeckImage(card)}
+                                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                    >
+                                      Set as deck image
+                                    </button>
+                                    {card.section !== 'commander' && (
+                                      <button
+                                        type="button"
+                                        disabled={removingCardId === card.id}
+                                        onClick={() => handleRemoveCard(card)}
+                                        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-red-300 transition hover:bg-slate-900 disabled:cursor-wait disabled:opacity-60"
+                                      >
+                                        Remove card
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         )
@@ -487,6 +781,41 @@ const DeckPage = () => {
           </section>
         </div>
       </ContentContainer>
+
+      {quantityModalCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1118] p-6 shadow-2xl shadow-black/70">
+            <h2 className="text-lg font-semibold text-white">Add copies of {quantityModalCard.card_name}</h2>
+            <p className="mt-2 text-sm text-slate-400">Enter the number of additional copies to add to this deck.</p>
+            <div className="mt-5 flex items-center gap-3">
+              <label className="min-w-24 text-sm text-slate-300">Quantity</label>
+              <input
+                type="number"
+                value={quantityInput}
+                min={1}
+                onChange={(event) => setQuantityInput(Number(event.target.value) || 1)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setQuantityModalCard(null)}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddMore}
+                className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400"
+              >
+                Add copies
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
