@@ -23,6 +23,7 @@ export interface DeckCard {
   color_identity?: string[] | null
   image_uris?: CardProps['image_uris'] | null
   card_faces?: CardProps['card_faces'] | null
+  card_data?: CardProps | null  // Complete card object from Scryfall API
 }
 
 export interface DeckWithCards extends DeckData {
@@ -124,6 +125,7 @@ export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
           color_identity: card.color_identity || null,
           image_uris: card.image_uris || null,
           card_faces: card.card_faces || null,
+          card_data: card.card_data || null,  // Store complete card object
         }))
       )
 
@@ -190,7 +192,8 @@ export async function getUserDecks(userId?: string) {
         colors,
         color_identity,
         image_uris,
-        card_faces
+        card_faces,
+        card_data
       )
     `)
     .order('updated_at', { ascending: false })
@@ -344,6 +347,7 @@ export async function addCardToDeck(deckId: string, card: DeckCard) {
       color_identity: card.color_identity || null,
       image_uris: card.image_uris || null,
       card_faces: card.card_faces || null,
+      card_data: card.card_data || null,  // Store complete card object
   }
 
   const query = existingCard

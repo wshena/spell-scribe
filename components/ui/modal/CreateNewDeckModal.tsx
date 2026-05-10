@@ -103,6 +103,7 @@ const CreateNewDeckModal = () => {
           color_identity: formData.commander.color_identity || null,
           image_uris: formData.commander.image_uris || formData.commander.card_faces?.[0]?.image_uris || null,
           card_faces: formData.commander.card_faces || null,
+          card_data: formData.commander
         })
       }
 
