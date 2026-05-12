@@ -1,5 +1,5 @@
-import Card from "@/components/Cards/Card";
-import CardPlaceholder from "@/components/Cards/CardPlaceholder";
+import Card from "@/components/cards/Card";
+import CardPlaceholder from "@/components/cards/CardPlaceholder";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
 import { fetchAdvancedSearchServer } from "@/lib/scryfall/advanceSearch";
 

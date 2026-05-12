@@ -7,25 +7,16 @@ import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import { CardProps, fetchCardsByName } from "@/lib/scryfall/cards";
 import { formatDecks } from "@/lib/constants";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
-import { SearchIcon, OptionsIcon } from "@/components/icons/Icons";
+import { SearchIcon } from "@/components/icons/Icons";
 import CardDetailModal from "@/components/ui/modal/CardDetailModal";
-import Image from "next/image";
 import { formatRelativeTime } from "@/lib/utils/deckUtils";
 import AdvanceSearchButton from "../ui/button/AdvanceSearchButton";
-
-interface DeckCard {
-  id: string;
-  card_id: string;
-  card_name: string;
-  type_line?: string | null;
-  quantity: number;
-  section: "main" | "sideboard" | "commander" | "maybeboard";
-  colors?: string[] | null;
-  color_identity?: string[] | null;
-  image_uris?: CardProps["image_uris"] | null;
-  card_faces?: CardProps["card_faces"] | null;
-  card_data?: CardProps | null; // Complete card object from Scryfall API
-}
+import CardOnDeck, {
+  DeckCard,
+  getDeckCardImageUri,
+  hasDeckCardBackFace,
+} from "@/components/cards/CardOnDeck";
+import Image from "next/image";
 
 interface DeckData {
   id: string;
@@ -152,6 +143,7 @@ const DeckDetails = () => {
   );
   const [quantityInput, setQuantityInput] = useState(1);
   const [deckCoverCard, setDeckCoverCard] = useState<DeckCard | null>(null);
+  const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
   const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const deckId = params.id as string;
@@ -268,30 +260,30 @@ const DeckDetails = () => {
   const commanderCard = deck?.cards.find(
     (card) => card.section === "commander",
   );
-  const coverImage =
-    getImageUri(deckCoverCard) ||
-    getImageUri(deck?.cards[0]) ||
-    getImageUri(deck?.commander);
   const artCropImage =
     getImageArtCrop(deckCoverCard) ||
     getImageArtCrop(deck?.cards[0]) ||
     getImageArtCrop(deck?.commander);
-  const commanderImage =
-    getImageUri(commanderCard) || getImageUri(deck?.commander);
-  const previewCard =
-    hoveredCard || deckCoverCard || commanderCard || deck?.commander;
+  const previewDeckCard = hoveredCard || deckCoverCard || commanderCard || null;
+  const previewCard = previewDeckCard || deck?.commander;
+  const isPreviewFlipped = previewDeckCard
+    ? Boolean(flippedCards[previewDeckCard.id])
+    : false;
+  const previewHasBackFace = previewDeckCard
+    ? hasDeckCardBackFace(previewDeckCard)
+    : false;
+  const previewFrontImage = previewDeckCard
+    ? getDeckCardImageUri(previewDeckCard)
+    : getImageUri(deck?.commander);
+  const previewBackImage =
+    previewDeckCard && previewHasBackFace
+      ? getDeckCardImageUri(previewDeckCard, true)
+      : null;
   const previewName =
     hoveredCard?.card_name ||
     deckCoverCard?.card_name ||
     deck?.commander?.name ||
     "Deck preview";
-  const previewLabel = hoveredCard
-    ? "Hovered card"
-    : deckCoverCard
-      ? "Deck image"
-      : deck?.commander
-        ? "Commander preview"
-        : "Deck preview";
 
   const handleAddCard = async (card: CardProps) => {
     if (!deck) return;
@@ -414,7 +406,7 @@ const DeckDetails = () => {
       id: card.card_id,
       name: card.card_name,
       image_uris: card.image_uris || null,
-      card_faces: card.card_faces || null,
+      card_faces: card.card_data?.card_faces || null,
       section: card.section,
     });
     localStorage.setItem("spellscribe:wishlist", JSON.stringify(wishlist));
@@ -445,7 +437,7 @@ const DeckDetails = () => {
       id: card.card_id,
       name: card.card_name,
       image_uris: card.image_uris || null,
-      card_faces: card.card_faces || null,
+      card_faces: card.card_data?.card_faces || null,
       section: card.section,
     });
     localStorage.setItem("spellscribe:collection", JSON.stringify(collection));
@@ -518,6 +510,14 @@ const DeckDetails = () => {
     setDeckCoverCard(card);
     setAlert({ label: `${card.card_name} set as deck cover`, type: "success" });
     setCardMenuId(null);
+  };
+
+  const handleCardFlipChange = (card: DeckCard, isCardFlipped: boolean) => {
+    setFlippedCards((current) => ({
+      ...current,
+      [card.id]: isCardFlipped,
+    }));
+    setHoveredCard(card);
   };
 
   const handleRemoveCard = async (card: DeckCard) => {
@@ -644,13 +644,62 @@ const DeckDetails = () => {
             <section className="">
               {previewCard ? (
                 <div>
-                  <div className="aspect-63/88 overflow-hidden rounded-lg bg-slate-900">
-                    {getImageUri(previewCard) ? (
-                      <img
-                        src={getImageUri(previewCard) ?? ""}
-                        alt={previewName}
-                        className="h-full w-full object-cover"
-                      />
+                  <div
+                    className="aspect-63/88 rounded-lg bg-slate-900"
+                    style={{ perspective: "1000px" }}
+                  >
+                    {previewFrontImage ? (
+                      <div
+                        className="relative h-full w-full rounded-lg"
+                        style={{
+                          transformStyle: "preserve-3d",
+                          transition:
+                            "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)",
+                          transform:
+                            isPreviewFlipped &&
+                            previewHasBackFace &&
+                            previewBackImage
+                              ? "rotateY(180deg)"
+                              : "rotateY(0deg)",
+                        }}
+                      >
+                        <div
+                          className="absolute inset-0 overflow-hidden rounded-lg"
+                          style={{
+                            backfaceVisibility: "hidden",
+                            WebkitBackfaceVisibility: "hidden",
+                          }}
+                        >
+                          <Image
+                            src={previewFrontImage}
+                            alt={previewName}
+                            loading="lazy"
+                            width={300}
+                            height={419}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+
+                        {previewHasBackFace && previewBackImage && (
+                          <div
+                            className="absolute inset-0 overflow-hidden rounded-lg"
+                            style={{
+                              backfaceVisibility: "hidden",
+                              WebkitBackfaceVisibility: "hidden",
+                              transform: "rotateY(180deg)",
+                            }}
+                          >
+                            <Image
+                              src={previewBackImage}
+                              alt={previewName}
+                              loading="lazy"
+                              width={300}
+                              height={419}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-slate-500">
                         No image available
@@ -777,147 +826,39 @@ const DeckDetails = () => {
                       )
                     </h2>
                     <div className="grid grid-cols-4 gap-1">
-                      {group.cards.map((card) => {
-                        const image = getImageUri(card);
-
-                        return (
-                          <div
-                            key={card.id}
-                            className="group cursor-pointer relative w-fit"
-                            onMouseEnter={() => setHoveredCard(card)}
-                          >
-                            <Image
-                              loading="lazy"
-                              src={image || "/image/empty-deck-bg.png"}
-                              alt={card.card_name}
-                              width={200}
-                              height={280}
-                              className="rounded-none object-cover object-top"
-                            />
-
-                            {/* card quantity */}
-                            <div className="group-hover:opacity-100 opacity-0 transition-opacity duration-150 ease-in-out absolute top-5 left-5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/80 px-2 py-0.5 text-xs font-medium text-white">
-                                x{card.quantity}
-                              </span>
-                            </div>
-
-                            {/* card option */}
-                            {isOwner && (
-                              <div className="group-hover:opacity-100 opacity-0 transition-opacity duration-150 ease-in-out absolute top-5 right-5">
-                                <div className="relative z-10">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setCardMenuId((current) =>
-                                        current === card.id ? null : card.id,
-                                      )
-                                    }
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-violet-500 hover:text-white"
-                                  >
-                                    <OptionsIcon size={16} />
-                                  </button>
-
-                                  {cardMenuId === card.id && (
-                                    // dropdown card menu
-                                    <div
-                                      ref={(el) => {
-                                        cardMenuRefs.current[card.id] = el;
-                                      }}
-                                      className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-white/10 bg-[#10161f] p-2 shadow-2xl shadow-black/50"
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddOne(card)}
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Add one
-                                        <span className="text-slate-500">
-                                          +1
-                                        </span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddMore(card)}
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Add more
-                                        <span className="text-slate-500">
-                                          Custom
-                                        </span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleAddToWishlist(card)
-                                        }
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Add to wishlist
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleAddToCollection(card)
-                                        }
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Add to collection
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleViewDetails(card)}
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        View details
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCopyCardName(card)}
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Copy name
-                                      </button>
-                                      {card.section !== "commander" &&
-                                        isCommanderCandidate(
-                                          card,
-                                          formatInfo || undefined,
-                                        ) && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              handleSetAsCommander(card)
-                                            }
-                                            className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                          >
-                                            Set as commander
-                                          </button>
-                                        )}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSetDeckImage(card)}
-                                        className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                      >
-                                        Set as deck image
-                                      </button>
-                                      {card.section !== "commander" && (
-                                        <button
-                                          type="button"
-                                          disabled={removingCardId === card.id}
-                                          onClick={() => handleRemoveCard(card)}
-                                          className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-red-300 transition hover:bg-slate-900 disabled:cursor-wait disabled:opacity-60"
-                                        >
-                                          Remove card
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {group.cards.map((card) => (
+                        <CardOnDeck
+                          key={card.id}
+                          card={card}
+                          isOwner={isOwner}
+                          isFlipped={Boolean(flippedCards[card.id])}
+                          isMenuOpen={cardMenuId === card.id}
+                          isRemoving={removingCardId === card.id}
+                          canSetAsCommander={isCommanderCandidate(
+                            card,
+                            formatInfo || undefined,
+                          )}
+                          onHover={setHoveredCard}
+                          onFlipChange={handleCardFlipChange}
+                          onToggleMenu={(cardId) =>
+                            setCardMenuId((current) =>
+                              current === cardId ? null : cardId,
+                            )
+                          }
+                          onMenuRef={(cardId, element) => {
+                            cardMenuRefs.current[cardId] = element;
+                          }}
+                          onAddOne={handleAddOne}
+                          onAddMore={handleAddMore}
+                          onAddToWishlist={handleAddToWishlist}
+                          onAddToCollection={handleAddToCollection}
+                          onViewDetails={handleViewDetails}
+                          onCopyCardName={handleCopyCardName}
+                          onSetAsCommander={handleSetAsCommander}
+                          onSetDeckImage={handleSetDeckImage}
+                          onRemoveCard={handleRemoveCard}
+                        />
+                      ))}
                     </div>
                   </section>
                 ))}

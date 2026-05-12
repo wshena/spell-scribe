@@ -4,8 +4,8 @@ import { CardProps, ScryfallSetCardsResponse } from '@/lib/scryfall/cards'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { fetcher } from '@/utils/fetcher'
 import { cn } from '@/lib/utils'
-import Card from '../Cards/Card'
-import CardPlaceholder from '../Cards/CardPlaceholder'
+import Card from '../cards/Card'
+import CardPlaceholder from '../cards/CardPlaceholder'
 
 interface SetsExplorerProps {
   initialItems: ScryfallSetCardsResponse
