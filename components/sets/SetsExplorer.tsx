@@ -165,6 +165,11 @@ export default function SetsExplorer({
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, isRouting, page, queryStringWithoutPage]);
 
+  const handleClearResult = () => {
+    setSearchInput("");
+    updateQueryParams({ q: undefined, setType: undefined });
+  };
+
   return (
     <section className="space-y-6">
       <div className="text-white">
@@ -181,7 +186,7 @@ export default function SetsExplorer({
         >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="w-full lg:w-[50%] flex items-center gap-0">
-              <label className="flex-1">
+              <label className="flex-1 relative">
                 <span className="sr-only">Search sets</span>
                 <input
                   value={searchInput}
@@ -189,12 +194,24 @@ export default function SetsExplorer({
                   placeholder="Search set name, code, or type"
                   className="w-full rounded-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
                 />
+
+                {/* clear user input */}
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
               </label>
 
               {/* search button */}
               <button
                 type="submit"
-                className="cursor-pointerrounded-md bg-violet-500 p-3"
+                className="cursor-pointer rounded-md bg-violet-500 p-3"
               >
                 <SearchIcon size={15} color="white" />
               </button>
@@ -236,36 +253,17 @@ export default function SetsExplorer({
             </button>
 
             {/* advance search */}
-            {/* <button
+            <AdvanceSearchButton type="sets" />
+
+            {/* clear result */}
+            <button
               type="button"
-              onClick={() =>
-                openModal(
-                  <CardsAdvancedSearchModal
-                    initialExactCode={initialFilters.exactCode}
-                    initialIncludeDigital={initialFilters.includeDigital}
-                    initialSort={initialFilters.sort}
-                    initialSetType={initialFilters.setType}
-                    setTypeOptions={setTypeOptions}
-                    onApply={({ exactCode, includeDigital, sort, setType }) => {
-                      updateQueryParams({
-                        code: exactCode,
-                        includeDigital,
-                        sort,
-                        setType,
-                        q: searchInput,
-                      })
-                    }}
-                  />,
-                  {
-                    contentClassName: 'w-full max-w-3xl',
-                  }
-                )
-              }
+              onClick={handleClearResult}
               className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600"
             >
-              Advanced search
-            </button> */}
-            <AdvanceSearchButton type="sets" />
+              Clear result
+            </button>
+
             {isRouting && (
               <p className="self-center text-sm text-slate-400">
                 Refreshing results...
