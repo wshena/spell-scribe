@@ -1,4 +1,5 @@
 import CardCollection from "@/components/cards/CardCollection";
+import CardSearchForm from "@/components/cards/CardSearchForm";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
 import { fetchAdvancedSearchServer } from "@/lib/scryfall/advanceSearch";
 import { Metadata } from "next";
@@ -58,9 +59,19 @@ export default async function CardsSearchPage({ searchParams }: Props) {
     page: parseInt(page),
   });
 
+  const visibleSearchQuery = q.match(/^name:"([^"]*)"$/)?.[1] ?? q;
+
   return (
     <main className="min-h-screen bg-[#0b0f14] pb-16 pt-24">
       <ContentContainer>
+        <div className="mb-6 text-white">
+          <CardSearchForm
+            context={{ type: "sets" }}
+            initialQuery={visibleSearchQuery}
+            placeholder="Search card name for this deck"
+          />
+        </div>
+
         <p className="mb-10 text-sm md:text-md text-gray-500">
           Search for '{q}-{order}-{dir}-{page}' returned {result.total_cards}{" "}
           cards found

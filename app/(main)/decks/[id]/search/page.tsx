@@ -85,6 +85,7 @@ export default async function DeckSearchPage({ params, searchParams }: Props) {
 
   const artCropImage =
     getImageArtCrop(deck?.cards[0]) || getImageArtCrop(deck?.commander);
+
   const visibleSearchQuery = q.match(/^name:"([^"]*)"$/)?.[1] ?? q;
 
   return (
