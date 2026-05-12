@@ -1,4 +1,5 @@
 import CardCollection from "@/components/cards/CardCollection";
+import CardSearchForm from "@/components/cards/CardSearchForm";
 import { AngleLeftIcon } from "@/components/icons/Icons";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
 import { fetchAdvancedSearchServer } from "@/lib/scryfall/advanceSearch";
@@ -43,7 +44,7 @@ export async function generateMetadata({
         type: "website",
       },
     };
-  } catch (error) {
+  } catch {
     return {
       title: "Deck Not Found | SpellScribe",
       description: "This MTG deck could not be found.",
@@ -84,6 +85,7 @@ export default async function DeckSearchPage({ params, searchParams }: Props) {
 
   const artCropImage =
     getImageArtCrop(deck?.cards[0]) || getImageArtCrop(deck?.commander);
+  const visibleSearchQuery = q.match(/^name:"([^"]*)"$/)?.[1] ?? q;
 
   return (
     <main className="min-h-screen bg-[#0b0f14] pb-16 pt-24">
@@ -150,9 +152,17 @@ export default async function DeckSearchPage({ params, searchParams }: Props) {
       {/* banner */}
 
       <ContentContainer>
+        <div className="mb-6 text-white">
+          <CardSearchForm
+            context={{ type: "deck", deckId: id }}
+            initialQuery={visibleSearchQuery}
+            placeholder="Search card name for this deck"
+          />
+        </div>
+
         <p className="mb-10 text-sm md:text-md text-gray-500">
-          Search for '{q}-{order}-{dir}-{page}' returned {result.total_cards}{" "}
-          cards found
+          Search for <span>{q || "all cards"}</span> returned{" "}
+          {result.total_cards} cards found
         </p>
 
         <CardCollection

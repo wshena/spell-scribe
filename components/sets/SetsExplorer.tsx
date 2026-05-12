@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import type {
   ScryfallSet,
   SetFilters,
@@ -20,10 +18,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import CardsSearchTipsModal from "../ui/modal/CardsSearchTipsModal";
-import CardsAdvancedSearchModal from "../ui/modal/CardsAdvancedSearchModal";
-import { SearchIcon } from "../icons/Icons";
 import Image from "next/image";
-import AdvanceSearchButton from "../ui/button/AdvanceSearchButton";
+import GlobalSearchForm from "../ui/search/GlobalSearchForm";
 
 interface SetsExplorerProps {
   initialItems: ScryfallSet[];
@@ -42,7 +38,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export default function SetsExplorer({
   initialItems,
   initialHasMore,
-  initialTotalCount,
   initialFilters,
   setTypeOptions,
 }: SetsExplorerProps) {
@@ -58,12 +53,9 @@ export default function SetsExplorer({
   const [loadMoreError, setLoadMoreError] = useState("");
   const [searchInput, setSearchInput] = useState(initialFilters.q);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const setTypeLabelMap = useMemo(
-    () => new Map(setTypeOptions.map((option) => [option.value, option.label])),
-    [setTypeOptions],
-  );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(initialItems);
     setPage(initialFilters.page);
     setHasMore(initialHasMore);
@@ -173,8 +165,20 @@ export default function SetsExplorer({
   return (
     <section className="space-y-6">
       <div className="text-white">
-        {/* search form */}
-        <form
+        <GlobalSearchForm
+          searchValue={searchInput}
+          onSearchValueChange={setSearchInput}
+          placeholder="Search set name, code, or type"
+          searchLabel="Search sets"
+          selectValue={initialFilters.setType}
+          selectOptions={setTypeOptions}
+          selectLabel="Filter by set type"
+          onSelectChange={(value) =>
+            updateQueryParams({
+              setType: value,
+              q: searchInput,
+            })
+          }
           onSubmit={(event) => {
             event.preventDefault();
             updateQueryParams({
@@ -182,96 +186,18 @@ export default function SetsExplorer({
               setType: initialFilters.setType,
             });
           }}
-          className="flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="w-full lg:w-[50%] flex items-center gap-0">
-              <label className="flex-1 relative">
-                <span className="sr-only">Search sets</span>
-                <input
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Search set name, code, or type"
-                  className="w-full rounded-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
-                />
-
-                {/* clear user input */}
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchInput("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-                    aria-label="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </label>
-
-              {/* search button */}
-              <button
-                type="submit"
-                className="cursor-pointer rounded-md bg-violet-500 p-3"
-              >
-                <SearchIcon size={15} color="white" />
-              </button>
-            </div>
-
-            <label className="lg:w-72">
-              <span className="sr-only">Filter by set type</span>
-              <select
-                value={initialFilters.setType}
-                onChange={(event) =>
-                  updateQueryParams({
-                    setType: event.target.value,
-                    q: searchInput,
-                  })
-                }
-                className="cursor-pointer w-full md:w-[50%] lg:w-full rounded-sm bg-white/5 px-4 py-3 text-sm text-violet-400 outline-none focus:border-violet-400"
-              >
-                {setTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {/* search tips */}
-            <button
-              type="button"
-              onClick={() =>
-                openModal(<CardsSearchTipsModal />, {
-                  contentClassName: "w-full max-w-2xl",
-                })
-              }
-              className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600"
-            >
-              Tips
-            </button>
-
-            {/* advance search */}
-            <AdvanceSearchButton type="sets" />
-
-            {/* clear result */}
-            <button
-              type="button"
-              onClick={handleClearResult}
-              className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600"
-            >
-              Clear result
-            </button>
-
-            {isRouting && (
-              <p className="self-center text-sm text-slate-400">
-                Refreshing results...
-              </p>
-            )}
-          </div>
-        </form>
+          showTips
+          onTipsClick={() =>
+            openModal(<CardsSearchTipsModal />, {
+              contentClassName: "w-full max-w-2xl",
+            })
+          }
+          advancedSearchType="sets"
+          onClearResult={handleClearResult}
+          isLoading={isRouting}
+        />
       </div>
+      {/* search form */}
 
       <div className="overflow-hidden text-white">
         <div className="overflow-x-auto">
