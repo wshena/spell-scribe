@@ -735,6 +735,7 @@ const DeckDetails = () => {
             </section>
           </aside>
 
+          {/* search form */}
           <section className="space-y-5">
             {isOwner && (
               <div ref={searchRef} className="relative space-y-1">
@@ -813,6 +814,7 @@ const DeckDetails = () => {
                 )}
               </div>
             )}
+            {/* search form */}
 
             {groupedCards.length > 0 ? (
               <div className="flex flex-col gap-4">

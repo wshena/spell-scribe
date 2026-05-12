@@ -1,30 +1,43 @@
-'use client'
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 
-import type { ScryfallSet, SetFilters, SetTypeOption, SetsPageResult } from '@/lib/scryfall/sets'
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { useUtilityStore } from '@/lib/zustand/utilityStore'
-import CardsSearchTipsModal from '../ui/modal/CardsSearchTipsModal'
-import CardsAdvancedSearchModal from '../ui/modal/CardsAdvancedSearchModal'
-import { SearchIcon } from '../icons/Icons'
-import Image from 'next/image'
+import type {
+  ScryfallSet,
+  SetFilters,
+  SetTypeOption,
+  SetsPageResult,
+} from "@/lib/scryfall/sets";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useUtilityStore } from "@/lib/zustand/utilityStore";
+import CardsSearchTipsModal from "../ui/modal/CardsSearchTipsModal";
+import CardsAdvancedSearchModal from "../ui/modal/CardsAdvancedSearchModal";
+import { SearchIcon } from "../icons/Icons";
+import Image from "next/image";
+import AdvanceSearchButton from "../ui/button/AdvanceSearchButton";
 
 interface SetsExplorerProps {
-  initialItems: ScryfallSet[]
-  initialHasMore: boolean
-  initialTotalCount: number
-  initialFilters: SetFilters
-  setTypeOptions: SetTypeOption[]
+  initialItems: ScryfallSet[];
+  initialHasMore: boolean;
+  initialTotalCount: number;
+  initialFilters: SetFilters;
+  setTypeOptions: SetTypeOption[];
 }
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-})
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 export default function SetsExplorer({
   initialItems,
@@ -33,118 +46,124 @@ export default function SetsExplorer({
   initialFilters,
   setTypeOptions,
 }: SetsExplorerProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const openModal = useUtilityStore((state) => state.openModal)
-  const [isRouting, startRouting] = useTransition()
-  const [items, setItems] = useState(initialItems)
-  const [page, setPage] = useState(initialFilters.page)
-  const [hasMore, setHasMore] = useState(initialHasMore)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [loadMoreError, setLoadMoreError] = useState('')
-  const [searchInput, setSearchInput] = useState(initialFilters.q)
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openModal = useUtilityStore((state) => state.openModal);
+  const [isRouting, startRouting] = useTransition();
+  const [items, setItems] = useState(initialItems);
+  const [page, setPage] = useState(initialFilters.page);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState("");
+  const [searchInput, setSearchInput] = useState(initialFilters.q);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const setTypeLabelMap = useMemo(
     () => new Map(setTypeOptions.map((option) => [option.value, option.label])),
-    [setTypeOptions]
-  )
+    [setTypeOptions],
+  );
 
   useEffect(() => {
-    setItems(initialItems)
-    setPage(initialFilters.page)
-    setHasMore(initialHasMore)
-    setIsLoadingMore(false)
-    setLoadMoreError('')
-    setSearchInput(initialFilters.q)
-  }, [initialFilters.page, initialFilters.q, initialHasMore, initialItems])
+    setItems(initialItems);
+    setPage(initialFilters.page);
+    setHasMore(initialHasMore);
+    setIsLoadingMore(false);
+    setLoadMoreError("");
+    setSearchInput(initialFilters.q);
+  }, [initialFilters.page, initialFilters.q, initialHasMore, initialItems]);
 
   const queryStringWithoutPage = useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('page')
-    return params.toString()
-  }, [searchParams])
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    return params.toString();
+  }, [searchParams]);
 
   const updateQueryParams = useCallback(
     (updates: Record<string, string | boolean | undefined>) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParams.toString());
 
       Object.entries(updates).forEach(([key, value]) => {
-        const normalizedValue = typeof value === 'boolean' ? String(value) : value?.trim()
+        const normalizedValue =
+          typeof value === "boolean" ? String(value) : value?.trim();
 
-        if (!normalizedValue || normalizedValue === 'all') {
-          params.delete(key)
-          return
+        if (!normalizedValue || normalizedValue === "all") {
+          params.delete(key);
+          return;
         }
 
-        params.set(key, normalizedValue)
-      })
+        params.set(key, normalizedValue);
+      });
 
-      params.delete('page')
+      params.delete("page");
 
       startRouting(() => {
-        router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, {
-          scroll: false,
-        })
-      })
+        router.replace(
+          params.toString() ? `${pathname}?${params.toString()}` : pathname,
+          {
+            scroll: false,
+          },
+        );
+      });
     },
-    [pathname, router, searchParams]
-  )
+    [pathname, router, searchParams],
+  );
 
   useEffect(() => {
-    const node = sentinelRef.current
+    const node = sentinelRef.current;
 
     if (!node || !hasMore || isLoadingMore || isRouting) {
-      return
+      return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0]
+        const entry = entries[0];
 
         if (!entry?.isIntersecting) {
-          return
+          return;
         }
 
-        setIsLoadingMore(true)
-        setLoadMoreError('')
+        setIsLoadingMore(true);
+        setLoadMoreError("");
 
-        const params = new URLSearchParams(queryStringWithoutPage)
-        params.set('page', String(page + 1))
+        const params = new URLSearchParams(queryStringWithoutPage);
+        params.set("page", String(page + 1));
 
         fetch(`/api/sets?${params.toString()}`)
           .then(async (response) => {
             if (!response.ok) {
-              throw new Error('Failed to load more sets')
+              throw new Error("Failed to load more sets");
             }
 
-            return (await response.json()) as SetsPageResult
+            return (await response.json()) as SetsPageResult;
           })
           .then((result) => {
             setItems((currentItems) => {
-              const existingIds = new Set(currentItems.map((item) => item.id))
-              const nextItems = result.items.filter((item) => !existingIds.has(item.id))
-              return [...currentItems, ...nextItems]
-            })
-            setPage(result.page)
-            setHasMore(result.hasMore)
+              const existingIds = new Set(currentItems.map((item) => item.id));
+              const nextItems = result.items.filter(
+                (item) => !existingIds.has(item.id),
+              );
+              return [...currentItems, ...nextItems];
+            });
+            setPage(result.page);
+            setHasMore(result.hasMore);
           })
           .catch(() => {
-            setLoadMoreError('Unable to load more sets right now.')
+            setLoadMoreError("Unable to load more sets right now.");
           })
           .finally(() => {
-            setIsLoadingMore(false)
-          })
+            setIsLoadingMore(false);
+          });
       },
       {
-        rootMargin: '320px 0px',
-      }
-    )
+        rootMargin: "320px 0px",
+      },
+    );
 
-    observer.observe(node)
+    observer.observe(node);
 
-    return () => observer.disconnect()
-  }, [hasMore, isLoadingMore, isRouting, page, queryStringWithoutPage])
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, isRouting, page, queryStringWithoutPage]);
 
   return (
     <section className="space-y-6">
@@ -152,8 +171,11 @@ export default function SetsExplorer({
         {/* search form */}
         <form
           onSubmit={(event) => {
-            event.preventDefault()
-            updateQueryParams({ q: searchInput, setType: initialFilters.setType })
+            event.preventDefault();
+            updateQueryParams({
+              q: searchInput,
+              setType: initialFilters.setType,
+            });
           }}
           className="flex flex-col gap-4"
         >
@@ -174,7 +196,7 @@ export default function SetsExplorer({
                 type="submit"
                 className="cursor-pointerrounded-md bg-violet-500 p-3"
               >
-                <SearchIcon size={15} color='white' />
+                <SearchIcon size={15} color="white" />
               </button>
             </div>
 
@@ -182,7 +204,12 @@ export default function SetsExplorer({
               <span className="sr-only">Filter by set type</span>
               <select
                 value={initialFilters.setType}
-                onChange={(event) => updateQueryParams({ setType: event.target.value, q: searchInput })}
+                onChange={(event) =>
+                  updateQueryParams({
+                    setType: event.target.value,
+                    q: searchInput,
+                  })
+                }
                 className="cursor-pointer w-full md:w-[50%] lg:w-full rounded-sm bg-white/5 px-4 py-3 text-sm text-violet-400 outline-none focus:border-violet-400"
               >
                 {setTypeOptions.map((option) => (
@@ -200,7 +227,7 @@ export default function SetsExplorer({
               type="button"
               onClick={() =>
                 openModal(<CardsSearchTipsModal />, {
-                  contentClassName: 'w-full max-w-2xl',
+                  contentClassName: "w-full max-w-2xl",
                 })
               }
               className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600"
@@ -209,7 +236,7 @@ export default function SetsExplorer({
             </button>
 
             {/* advance search */}
-            <button
+            {/* <button
               type="button"
               onClick={() =>
                 openModal(
@@ -237,8 +264,13 @@ export default function SetsExplorer({
               className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600"
             >
               Advanced search
-            </button>
-            {isRouting && <p className="self-center text-sm text-slate-400">Refreshing results...</p>}
+            </button> */}
+            <AdvanceSearchButton type="sets" />
+            {isRouting && (
+              <p className="self-center text-sm text-slate-400">
+                Refreshing results...
+              </p>
+            )}
           </div>
         </form>
       </div>
@@ -251,14 +283,19 @@ export default function SetsExplorer({
                 <th className="py-4">Set name</th>
                 <th className=" py-4 text-right">Code</th>
                 <th className=" py-4 text-right hidden md:table-cell">Cards</th>
-                <th className=" py-4 text-right hidden md:table-cell">Release date</th>
+                <th className=" py-4 text-right hidden md:table-cell">
+                  Release date
+                </th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {items.map((set) => (
                 <tr key={set.id} className="border-t border-white/8">
                   <td className="py-4">
-                    <Link href={`/sets/${set.code}`} className="flex items-center gap-3 text-violet-200 hover:text-violet-100 hover:underline">
+                    <Link
+                      href={`/sets/${set.code}`}
+                      className="flex items-center gap-3 text-violet-200 hover:text-violet-100 hover:underline"
+                    >
                       {set.icon_svg_uri ? (
                         <Image
                           src={set.icon_svg_uri}
@@ -273,14 +310,22 @@ export default function SetsExplorer({
                       )}
                       <div className="min-w-0">
                         <p className="truncate font-medium">{set.name}</p>
-                        {set.digital && <p className="text-xs text-cyan-300">Digital</p>}
+                        {set.digital && (
+                          <p className="text-xs text-cyan-300">Digital</p>
+                        )}
                       </div>
                     </Link>
                   </td>
-                  <td className="py-4 text-right uppercase text-slate-200">{set.code}</td>
-                  <td className="py-4 text-right text-slate-300 hidden md:table-cell">{set.card_count}</td>
+                  <td className="py-4 text-right uppercase text-slate-200">
+                    {set.code}
+                  </td>
                   <td className="py-4 text-right text-slate-300 hidden md:table-cell">
-                    {set.released_at ? dateFormatter.format(new Date(set.released_at)) : '-'}
+                    {set.card_count}
+                  </td>
+                  <td className="py-4 text-right text-slate-300 hidden md:table-cell">
+                    {set.released_at
+                      ? dateFormatter.format(new Date(set.released_at))
+                      : "-"}
                   </td>
                 </tr>
               ))}
@@ -291,20 +336,34 @@ export default function SetsExplorer({
         {!items.length && (
           <div className="px-6 py-16 text-center">
             <h2 className="text-xl font-semibold">No sets found</h2>
-            <p className="mt-3 text-sm text-slate-400">Try changing the keywords, set type, or advanced search filters.</p>
+            <p className="mt-3 text-sm text-slate-400">
+              Try changing the keywords, set type, or advanced search filters.
+            </p>
           </div>
         )}
 
         {items.length > 0 && (
           <div className="border-t border-white/8 px-6 py-6">
             <div ref={sentinelRef} />
-            {isLoadingMore && <p className="text-sm text-slate-400">Loading more sets...</p>}
-            {!isLoadingMore && hasMore && <p className="text-sm text-slate-500">Keep scrolling for the next result</p>}
-            {loadMoreError && <p className="text-sm text-rose-300">{loadMoreError}</p>}
-            {!hasMore && <p className="text-sm text-slate-500">All results have been displayed.</p>}
+            {isLoadingMore && (
+              <p className="text-sm text-slate-400">Loading more sets...</p>
+            )}
+            {!isLoadingMore && hasMore && (
+              <p className="text-sm text-slate-500">
+                Keep scrolling for the next result
+              </p>
+            )}
+            {loadMoreError && (
+              <p className="text-sm text-rose-300">{loadMoreError}</p>
+            )}
+            {!hasMore && (
+              <p className="text-sm text-slate-500">
+                All results have been displayed.
+              </p>
+            )}
           </div>
         )}
       </div>
     </section>
-  )
+  );
 }
