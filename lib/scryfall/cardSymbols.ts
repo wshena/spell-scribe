@@ -1,4 +1,4 @@
-interface CardSymbol {
+export interface CardSymbol {
   object: string;
   symbol: string;
   svg_uri: string;
@@ -25,10 +25,10 @@ interface CardSymbolList {
 export async function fetchCardManaSymbols(): Promise<CardSymbolList> {
   // Cek apakah window terdefinisi
   const isClient = typeof window !== "undefined";
-  
+
   // Pilih base URL berdasarkan environment
-  const baseURL = isClient 
-    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL 
+  const baseURL = isClient
+    ? process.env.NEXT_PUBLIC_SCRYFALL_API_URL
     : process.env.SCRYFALL_API_URL;
 
   const response = await fetch(`${baseURL}/symbology`, {

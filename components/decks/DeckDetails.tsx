@@ -1,84 +1,115 @@
 /* eslint-disable @next/next/no-img-element */
-'use client'
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useUtilityStore } from '@/lib/zustand/utilityStore'
-import { CardProps, fetchCardsByName } from '@/lib/scryfall/cards'
-import { formatDecks } from '@/lib/constants'
-import ContentContainer from '@/components/ui/containers/ContentContainer'
-import { SearchIcon, OptionsIcon } from '@/components/icons/Icons'
-import CardDetailModal from '@/components/ui/modal/CardDetailModal'
-import Image from 'next/image'
-import { formatRelativeTime } from '@/lib/utils/deckUtils'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useUtilityStore } from "@/lib/zustand/utilityStore";
+import { CardProps, fetchCardsByName } from "@/lib/scryfall/cards";
+import { formatDecks } from "@/lib/constants";
+import ContentContainer from "@/components/ui/containers/ContentContainer";
+import { SearchIcon, OptionsIcon } from "@/components/icons/Icons";
+import CardDetailModal from "@/components/ui/modal/CardDetailModal";
+import Image from "next/image";
+import { formatRelativeTime } from "@/lib/utils/deckUtils";
+import AdvanceSearchButton from "../ui/button/AdvanceSearchButton";
 
 interface DeckCard {
-  id: string
-  card_id: string
-  card_name: string
-  type_line?: string | null
-  quantity: number
-  section: 'main' | 'sideboard' | 'commander' | 'maybeboard'
-  colors?: string[] | null
-  color_identity?: string[] | null
-  image_uris?: CardProps['image_uris'] | null
-  card_faces?: CardProps['card_faces'] | null
-  card_data?: CardProps | null  // Complete card object from Scryfall API
+  id: string;
+  card_id: string;
+  card_name: string;
+  type_line?: string | null;
+  quantity: number;
+  section: "main" | "sideboard" | "commander" | "maybeboard";
+  colors?: string[] | null;
+  color_identity?: string[] | null;
+  image_uris?: CardProps["image_uris"] | null;
+  card_faces?: CardProps["card_faces"] | null;
+  card_data?: CardProps | null; // Complete card object from Scryfall API
 }
 
 interface DeckData {
-  id: string
-  user_id?: string
-  name: string
-  format: string
-  visibility: 'Public' | 'Unlisted' | 'Private'
-  commander: CardProps | null
-  description: string | null
-  cards: DeckCard[]
-  created_at: string
-  updated_at: string
+  id: string;
+  user_id?: string;
+  name: string;
+  format: string;
+  visibility: "Public" | "Unlisted" | "Private";
+  commander: CardProps | null;
+  description: string | null;
+  cards: DeckCard[];
+  created_at: string;
+  updated_at: string;
 }
 
 interface DeckResponse {
-  deck: DeckData
-  isOwner: boolean
+  deck: DeckData;
+  isOwner: boolean;
 }
 
-const typeOrder = ['Commander', 'Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Battle', 'Land', 'Other']
+const typeOrder = [
+  "Commander",
+  "Creature",
+  "Planeswalker",
+  "Instant",
+  "Sorcery",
+  "Artifact",
+  "Enchantment",
+  "Battle",
+  "Land",
+  "Other",
+];
 
-function getImageUri(card?: Pick<DeckCard, 'image_uris' | 'card_faces'> | CardProps | null) {
-  return card?.image_uris?.normal || card?.card_faces?.[0]?.image_uris?.normal || null
+function getImageUri(
+  card?: Pick<DeckCard, "image_uris" | "card_faces"> | CardProps | null,
+) {
+  return (
+    card?.image_uris?.normal ||
+    card?.card_faces?.[0]?.image_uris?.normal ||
+    null
+  );
 }
 
-function getImageArtCrop(card?: Pick<DeckCard, 'image_uris' | 'card_faces'> | CardProps | null) {
-  return card?.image_uris?.art_crop || card?.card_faces?.[0]?.image_uris?.art_crop || null
+function getImageArtCrop(
+  card?: Pick<DeckCard, "image_uris" | "card_faces"> | CardProps | null,
+) {
+  return (
+    card?.image_uris?.art_crop ||
+    card?.card_faces?.[0]?.image_uris?.art_crop ||
+    null
+  );
 }
 
 function getPrimaryType(typeLine?: string | null) {
-  if (!typeLine) return 'Other'
+  if (!typeLine) return "Other";
 
-  const lowerTypeLine = typeLine.toLowerCase()
-  const matchedType = typeOrder.find((type) => lowerTypeLine.includes(type.toLowerCase()))
-  return matchedType || 'Other'
+  const lowerTypeLine = typeLine.toLowerCase();
+  const matchedType = typeOrder.find((type) =>
+    lowerTypeLine.includes(type.toLowerCase()),
+  );
+  return matchedType || "Other";
 }
 
 function getSearchCardImage(card: CardProps) {
-  return card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || null
+  return (
+    card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || null
+  );
 }
 
-function isCommanderCandidate(card: DeckCard, formatInfo?: { commander: boolean }) {
-  if (!formatInfo?.commander) return false
-  const typeLine = card.type_line?.toLowerCase() || ''
+function isCommanderCandidate(
+  card: DeckCard,
+  formatInfo?: { commander: boolean },
+) {
+  if (!formatInfo?.commander) return false;
+  const typeLine = card.type_line?.toLowerCase() || "";
   return (
-    (typeLine.includes('legendary') && typeLine.includes('creature')) ||
-    typeLine.includes('planeswalker')
-  )
+    (typeLine.includes("legendary") && typeLine.includes("creature")) ||
+    typeLine.includes("planeswalker")
+  );
 }
 
 function deckCardToCardProps(card: DeckCard): CardProps {
   // If we have the complete card_data stored, use it directly
   if (card.card_data) {
-    return card.card_data
+    return card.card_data;
   }
 
   // Fallback to constructed CardProps from individual fields
@@ -90,129 +121,137 @@ function deckCardToCardProps(card: DeckCard): CardProps {
     card_faces: card.card_faces || undefined,
     colors: card.colors || undefined,
     color_identity: card.color_identity || undefined,
-  } as CardProps
+  } as CardProps;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
+  return error instanceof Error ? error.message : fallback;
 }
 
 const DeckDetails = () => {
-  const params = useParams()
-  const router = useRouter()
-  const setAlert = useUtilityStore((state) => state.setAlert)
-  const openModal = useUtilityStore((state) => state.openModal)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const params = useParams();
+  const router = useRouter();
+  const setAlert = useUtilityStore((state) => state.setAlert);
+  const openModal = useUtilityStore((state) => state.openModal);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const [deck, setDeck] = useState<DeckData | null>(null)
-  const [isOwner, setIsOwner] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<CardProps[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [addingCardId, setAddingCardId] = useState<string | null>(null)
-  const [removingCardId, setRemovingCardId] = useState<string | null>(null)
-  const [showResults, setShowResults] = useState(false)
-  const [hoveredCard, setHoveredCard] = useState<DeckCard | null>(null)
-  const [cardMenuId, setCardMenuId] = useState<string | null>(null)
-  const [quantityModalCard, setQuantityModalCard] = useState<DeckCard | null>(null)
-  const [quantityInput, setQuantityInput] = useState(1)
-  const [deckCoverCard, setDeckCoverCard] = useState<DeckCard | null>(null)
-  const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [deck, setDeck] = useState<DeckData | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CardProps[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [addingCardId, setAddingCardId] = useState<string | null>(null);
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<DeckCard | null>(null);
+  const [cardMenuId, setCardMenuId] = useState<string | null>(null);
+  const [quantityModalCard, setQuantityModalCard] = useState<DeckCard | null>(
+    null,
+  );
+  const [quantityInput, setQuantityInput] = useState(1);
+  const [deckCoverCard, setDeckCoverCard] = useState<DeckCard | null>(null);
+  const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const deckId = params.id as string
+  const deckId = params.id as string;
 
   const fetchDeck = useCallback(async () => {
     try {
-      setIsLoading(true)
-      const response = await fetch(`/api/decks/${deckId}`)
+      setIsLoading(true);
+      const response = await fetch(`/api/decks/${deckId}`);
 
       if (!response.ok) {
         if (response.status === 404) {
-          setError('Deck not found')
-          return
+          setError("Deck not found");
+          return;
         }
-        throw new Error('Failed to fetch deck')
+        throw new Error("Failed to fetch deck");
       }
 
-      const data = (await response.json()) as DeckResponse
-      setDeck(data.deck)
-      setIsOwner(data.isOwner)
-      setError(null)
+      const data = (await response.json()) as DeckResponse;
+      setDeck(data.deck);
+      setIsOwner(data.isOwner);
+      setError(null);
     } catch (err: unknown) {
-      console.error('Error fetching deck:', err)
-      setError(getErrorMessage(err, 'Failed to load deck'))
+      console.error("Error fetching deck:", err);
+      setError(getErrorMessage(err, "Failed to load deck"));
       setAlert({
-        label: 'Failed to load deck',
-        type: 'error',
-      })
+        label: "Failed to load deck",
+        type: "error",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [deckId, setAlert])
+  }, [deckId, setAlert]);
 
   useEffect(() => {
     if (deckId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchDeck()
+      fetchDeck();
     }
-  }, [deckId, fetchDeck])
+  }, [deckId, fetchDeck]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowResults(false)
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
+        setShowResults(false);
       }
 
       if (cardMenuId) {
-        const menuElement = cardMenuRefs.current[cardMenuId]
+        const menuElement = cardMenuRefs.current[cardMenuId];
         if (menuElement && !menuElement.contains(event.target as Node)) {
-          setCardMenuId(null)
+          setCardMenuId(null);
         }
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [cardMenuId])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [cardMenuId]);
 
   useEffect(() => {
     const searchCards = async () => {
       if (!isOwner || query.trim().length < 2) {
-        setSearchResults([])
-        return
+        setSearchResults([]);
+        return;
       }
 
-      setIsSearching(true)
+      setIsSearching(true);
       try {
-        const cards = await fetchCardsByName(query)
-        setSearchResults(cards.slice(0, 10))
+        const cards = await fetchCardsByName(query);
+        setSearchResults(cards.slice(0, 10));
       } catch (err) {
-        console.error('Error searching cards:', err)
-        setSearchResults([])
+        console.error("Error searching cards:", err);
+        setSearchResults([]);
       } finally {
-        setIsSearching(false)
+        setIsSearching(false);
       }
-    }
+    };
 
-    const debounceTimer = setTimeout(searchCards, 300)
-    return () => clearTimeout(debounceTimer)
-  }, [isOwner, query])
+    const debounceTimer = setTimeout(searchCards, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [isOwner, query]);
 
   const totalCards = useMemo(
     () => deck?.cards.reduce((sum, card) => sum + card.quantity, 0) || 0,
-    [deck]
-  )
+    [deck],
+  );
 
   const groupedCards = useMemo(() => {
-    const groups = new Map<string, DeckCard[]>()
+    const groups = new Map<string, DeckCard[]>();
 
     deck?.cards.forEach((card) => {
-      const groupName = card.section === 'commander' ? 'Commander' : getPrimaryType(card.type_line)
-      const existingGroup = groups.get(groupName) || []
-      groups.set(groupName, [...existingGroup, card])
-    })
+      const groupName =
+        card.section === "commander"
+          ? "Commander"
+          : getPrimaryType(card.type_line);
+      const existingGroup = groups.get(groupName) || [];
+      groups.set(groupName, [...existingGroup, card]);
+    });
 
     return Array.from(groups.entries())
       .sort(([a], [b]) => typeOrder.indexOf(a) - typeOrder.indexOf(b))
@@ -220,121 +259,155 @@ const DeckDetails = () => {
         type,
         cards: cards.sort((a, b) => a.card_name.localeCompare(b.card_name)),
         total: cards.reduce((sum, card) => sum + card.quantity, 0),
-      }))
-  }, [deck])
+      }));
+  }, [deck]);
 
-  const formatInfo = deck ? formatDecks.find((format) => format.name === deck.format) : null
-  const commanderCard = deck?.cards.find((card) => card.section === 'commander')
-  const coverImage = getImageUri(deckCoverCard) || getImageUri(deck?.cards[0]) || getImageUri(deck?.commander)
-  const artCropImage = getImageArtCrop(deckCoverCard) || getImageArtCrop(deck?.cards[0]) || getImageArtCrop(deck?.commander)
-  const commanderImage = getImageUri(commanderCard) || getImageUri(deck?.commander)
-  const previewCard = hoveredCard || deckCoverCard || commanderCard || deck?.commander
-  const previewName = hoveredCard?.card_name || deckCoverCard?.card_name || deck?.commander?.name || 'Deck preview'
-  const previewLabel = hoveredCard ? 'Hovered card' : deckCoverCard ? 'Deck image' : deck?.commander ? 'Commander preview' : 'Deck preview'
+  const formatInfo = deck
+    ? formatDecks.find((format) => format.name === deck.format)
+    : null;
+  const commanderCard = deck?.cards.find(
+    (card) => card.section === "commander",
+  );
+  const coverImage =
+    getImageUri(deckCoverCard) ||
+    getImageUri(deck?.cards[0]) ||
+    getImageUri(deck?.commander);
+  const artCropImage =
+    getImageArtCrop(deckCoverCard) ||
+    getImageArtCrop(deck?.cards[0]) ||
+    getImageArtCrop(deck?.commander);
+  const commanderImage =
+    getImageUri(commanderCard) || getImageUri(deck?.commander);
+  const previewCard =
+    hoveredCard || deckCoverCard || commanderCard || deck?.commander;
+  const previewName =
+    hoveredCard?.card_name ||
+    deckCoverCard?.card_name ||
+    deck?.commander?.name ||
+    "Deck preview";
+  const previewLabel = hoveredCard
+    ? "Hovered card"
+    : deckCoverCard
+      ? "Deck image"
+      : deck?.commander
+        ? "Commander preview"
+        : "Deck preview";
 
   const handleAddCard = async (card: CardProps) => {
-    if (!deck) return
+    if (!deck) return;
 
-    setAddingCardId(card.id)
+    setAddingCardId(card.id);
     try {
       const response = await fetch(`/api/decks/${deck.id}/cards`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           card_id: card.id,
           card_name: card.name,
           type_line: card.type_line,
           quantity: 1,
-          section: 'main',
+          section: "main",
           colors: card.colors || null,
           color_identity: card.color_identity || null,
-          image_uris: card.image_uris || card.card_faces?.[0]?.image_uris || null,
+          image_uris:
+            card.image_uris || card.card_faces?.[0]?.image_uris || null,
           card_faces: card.card_faces || null,
-          card_data: card,  // Store complete card object
+          card_data: card, // Store complete card object
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to add card')
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to add card");
       }
 
       setAlert({
         label: `${card.name} added to deck`,
-        type: 'success',
-      })
-      setQuery('')
-      setSearchResults([])
-      setShowResults(false)
-      await fetchDeck()
+        type: "success",
+      });
+      setQuery("");
+      setSearchResults([]);
+      setShowResults(false);
+      await fetchDeck();
     } catch (err: unknown) {
       setAlert({
-        label: getErrorMessage(err, 'Failed to add card'),
-        type: 'error',
-      })
+        label: getErrorMessage(err, "Failed to add card"),
+        type: "error",
+      });
     } finally {
-      setAddingCardId(null)
+      setAddingCardId(null);
     }
-  }
+  };
 
   const handleUpdateCardQuantity = async (card: DeckCard, quantity: number) => {
-    if (!deck) return
+    if (!deck) return;
 
     try {
       const response = await fetch(`/api/decks/${deck.id}/cards`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           cardId: card.card_id,
           section: card.section,
           quantity,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to update card quantity')
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to update card quantity");
       }
 
-      await fetchDeck()
+      await fetchDeck();
     } catch (err: unknown) {
       setAlert({
-        label: getErrorMessage(err, 'Failed to update card'),
-        type: 'error',
-      })
+        label: getErrorMessage(err, "Failed to update card"),
+        type: "error",
+      });
     }
-  }
+  };
 
   const handleAddOne = async (card: DeckCard) => {
-    await handleUpdateCardQuantity(card, card.quantity + 1)
-    setCardMenuId(null)
-  }
+    await handleUpdateCardQuantity(card, card.quantity + 1);
+    setCardMenuId(null);
+  };
 
   const handleAddMore = (card: DeckCard) => {
-    setQuantityModalCard(card)
-    setQuantityInput(1)
-    setCardMenuId(null)
-  }
+    setQuantityModalCard(card);
+    setQuantityInput(1);
+    setCardMenuId(null);
+  };
 
   const handleConfirmAddMore = async () => {
-    if (!quantityModalCard) return
-    await handleUpdateCardQuantity(quantityModalCard, quantityModalCard.quantity + quantityInput)
-    setQuantityModalCard(null)
-  }
+    if (!quantityModalCard) return;
+    await handleUpdateCardQuantity(
+      quantityModalCard,
+      quantityModalCard.quantity + quantityInput,
+    );
+    setQuantityModalCard(null);
+  };
 
   const handleAddToWishlist = (card: DeckCard) => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('spellscribe:wishlist') : null
-    const wishlist = stored ? JSON.parse(stored) : []
-    const exists = wishlist.some((item: { id: string }) => item.id === card.card_id)
+    const stored =
+      typeof window !== "undefined"
+        ? localStorage.getItem("spellscribe:wishlist")
+        : null;
+    const wishlist = stored ? JSON.parse(stored) : [];
+    const exists = wishlist.some(
+      (item: { id: string }) => item.id === card.card_id,
+    );
 
     if (exists) {
-      setAlert({ label: `${card.card_name} is already in your wishlist`, type: 'info' })
-      setCardMenuId(null)
-      return
+      setAlert({
+        label: `${card.card_name} is already in your wishlist`,
+        type: "info",
+      });
+      setCardMenuId(null);
+      return;
     }
 
     wishlist.unshift({
@@ -343,21 +416,29 @@ const DeckDetails = () => {
       image_uris: card.image_uris || null,
       card_faces: card.card_faces || null,
       section: card.section,
-    })
-    localStorage.setItem('spellscribe:wishlist', JSON.stringify(wishlist))
-    setAlert({ label: `${card.card_name} added to wishlist`, type: 'success' })
-    setCardMenuId(null)
-  }
+    });
+    localStorage.setItem("spellscribe:wishlist", JSON.stringify(wishlist));
+    setAlert({ label: `${card.card_name} added to wishlist`, type: "success" });
+    setCardMenuId(null);
+  };
 
   const handleAddToCollection = (card: DeckCard) => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('spellscribe:collection') : null
-    const collection = stored ? JSON.parse(stored) : []
-    const exists = collection.some((item: { id: string }) => item.id === card.card_id)
+    const stored =
+      typeof window !== "undefined"
+        ? localStorage.getItem("spellscribe:collection")
+        : null;
+    const collection = stored ? JSON.parse(stored) : [];
+    const exists = collection.some(
+      (item: { id: string }) => item.id === card.card_id,
+    );
 
     if (exists) {
-      setAlert({ label: `${card.card_name} is already in your collection`, type: 'info' })
-      setCardMenuId(null)
-      return
+      setAlert({
+        label: `${card.card_name} is already in your collection`,
+        type: "info",
+      });
+      setCardMenuId(null);
+      return;
     }
 
     collection.unshift({
@@ -366,96 +447,108 @@ const DeckDetails = () => {
       image_uris: card.image_uris || null,
       card_faces: card.card_faces || null,
       section: card.section,
-    })
-    localStorage.setItem('spellscribe:collection', JSON.stringify(collection))
-    setAlert({ label: `${card.card_name} added to collection`, type: 'success' })
-    setCardMenuId(null)
-  }
+    });
+    localStorage.setItem("spellscribe:collection", JSON.stringify(collection));
+    setAlert({
+      label: `${card.card_name} added to collection`,
+      type: "success",
+    });
+    setCardMenuId(null);
+  };
 
   const handleViewDetails = (card: DeckCard) => {
-    openModal(<CardDetailModal card={deckCardToCardProps(card)} />)
-    setCardMenuId(null)
-  }
+    openModal(<CardDetailModal card={deckCardToCardProps(card)} />);
+    setCardMenuId(null);
+  };
 
   const handleCopyCardName = async (card: DeckCard) => {
     try {
-      await navigator.clipboard.writeText(card.card_name)
-      setAlert({ label: `${card.card_name} copied to clipboard`, type: 'success' })
+      await navigator.clipboard.writeText(card.card_name);
+      setAlert({
+        label: `${card.card_name} copied to clipboard`,
+        type: "success",
+      });
     } catch {
-      setAlert({ label: 'Unable to copy card name', type: 'error' })
+      setAlert({ label: "Unable to copy card name", type: "error" });
     } finally {
-      setCardMenuId(null)
+      setCardMenuId(null);
     }
-  }
+  };
 
   const handleSetAsCommander = async (card: DeckCard) => {
-    if (!deck) return
+    if (!deck) return;
     if (!isCommanderCandidate(card, formatInfo || undefined)) {
-      setAlert({ label: 'Card is not legal as commander', type: 'error' })
-      setCardMenuId(null)
-      return
+      setAlert({ label: "Card is not legal as commander", type: "error" });
+      setCardMenuId(null);
+      return;
     }
 
     try {
       const response = await fetch(`/api/decks/${deck.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           commander: deckCardToCardProps(card),
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to set commander')
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to set commander");
       }
 
-      setAlert({ label: `${card.card_name} is now the commander`, type: 'success' })
-      await fetchDeck()
+      setAlert({
+        label: `${card.card_name} is now the commander`,
+        type: "success",
+      });
+      await fetchDeck();
     } catch (err: unknown) {
-      setAlert({ label: getErrorMessage(err, 'Failed to set commander'), type: 'error' })
+      setAlert({
+        label: getErrorMessage(err, "Failed to set commander"),
+        type: "error",
+      });
     } finally {
-      setCardMenuId(null)
+      setCardMenuId(null);
     }
-  }
+  };
 
   const handleSetDeckImage = (card: DeckCard) => {
-    setDeckCoverCard(card)
-    setAlert({ label: `${card.card_name} set as deck cover`, type: 'success' })
-    setCardMenuId(null)
-  }
+    setDeckCoverCard(card);
+    setAlert({ label: `${card.card_name} set as deck cover`, type: "success" });
+    setCardMenuId(null);
+  };
 
   const handleRemoveCard = async (card: DeckCard) => {
-    if (!deck) return
+    if (!deck) return;
 
-    setRemovingCardId(card.id)
+    setRemovingCardId(card.id);
     try {
       const response = await fetch(
         `/api/decks/${deck.id}/cards?cardId=${encodeURIComponent(card.card_id)}&section=${encodeURIComponent(card.section)}`,
-        { method: 'DELETE' }
-      )
+        { method: "DELETE" },
+      );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to remove card')
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to remove card");
       }
 
       setAlert({
         label: `${card.card_name} removed from deck`,
-        type: 'success',
-      })
-      await fetchDeck()
+        type: "success",
+      });
+      await fetchDeck();
     } catch (err: unknown) {
       setAlert({
-        label: getErrorMessage(err, 'Failed to remove card'),
-        type: 'error',
-      })
+        label: getErrorMessage(err, "Failed to remove card"),
+        type: "error",
+      });
     } finally {
-      setRemovingCardId(null)
+      setRemovingCardId(null);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -465,7 +558,7 @@ const DeckDetails = () => {
           <p>Loading deck...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !deck) {
@@ -475,14 +568,14 @@ const DeckDetails = () => {
           <h1 className="mb-4 text-2xl font-bold">Deck Not Found</h1>
           <p className="mb-6 text-slate-400">{error}</p>
           <button
-            onClick={() => router.push('/decks/personal')}
+            onClick={() => router.push("/decks/personal")}
             className="bg-violet-600 px-6 py-2 text-white transition-colors hover:bg-violet-500"
           >
             Back to My Decks
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -512,21 +605,31 @@ const DeckDetails = () => {
             <div className="py-15">
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-3xl font-semibold leading-tight text-white lg:text-5xl">{deck.name}</h1>
+                  <h1 className="text-3xl font-semibold leading-tight text-white lg:text-5xl">
+                    {deck.name}
+                  </h1>
                   {deck.description && (
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{deck.description}</p>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                      {deck.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                   <span>{deck.format}</span>
                   <span className="text-slate-600">/</span>
                   <span>{deck.visibility}</span>
-                  {isOwner && <span className="bg-violet-500/15 px-2 py-1 text-violet-200">Editable</span>}
+                  {isOwner && (
+                    <span className="bg-violet-500/15 px-2 py-1 text-violet-200">
+                      Editable
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 text-sm text-slate-300">
                   <span>{totalCards} cards</span>
                   <span>Updated {formatRelativeTime(deck.updated_at)}</span>
-                  {deck.commander && <span>Commander: {deck.commander.name}</span>}
+                  {deck.commander && (
+                    <span>Commander: {deck.commander.name}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -543,9 +646,15 @@ const DeckDetails = () => {
                 <div>
                   <div className="aspect-63/88 overflow-hidden rounded-lg bg-slate-900">
                     {getImageUri(previewCard) ? (
-                      <img src={getImageUri(previewCard) ?? ''} alt={previewName} className="h-full w-full object-cover" />
+                      <img
+                        src={getImageUri(previewCard) ?? ""}
+                        alt={previewName}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-500">No image available</div>
+                      <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                        No image available
+                      </div>
                     )}
                   </div>
                 </div>
@@ -557,7 +666,9 @@ const DeckDetails = () => {
             </section>
 
             <section className="border border-white/10 bg-[#10161f] p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Deck Stats</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">
+                Deck Stats
+              </p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between gap-4">
                   <span className="text-slate-400">Format</span>
@@ -586,8 +697,8 @@ const DeckDetails = () => {
                     type="text"
                     value={query}
                     onChange={(event) => {
-                      setQuery(event.target.value)
-                      setShowResults(true)
+                      setQuery(event.target.value);
+                      setShowResults(true);
                     }}
                     onFocus={() => setShowResults(true)}
                     placeholder="Search cards by name..."
@@ -596,19 +707,17 @@ const DeckDetails = () => {
                 </div>
 
                 {/* advance button */}
-                <button
-                  type="button"
-                  className="cursor-pointer text-sm font-medium text-violet-400 hover:text-violet-600">
-                    Advanced search
-                </button>
+                <AdvanceSearchButton type="deck" deckId={deck.id} />
 
                 {showResults && (
                   <div className="absolute left-0 right-4 top-full z-30 mt-1 max-h-80 overflow-y-auto border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
                     {isSearching ? (
-                      <div className="px-3 py-3 text-sm text-slate-400">Searching...</div>
+                      <div className="px-3 py-3 text-sm text-slate-400">
+                        Searching...
+                      </div>
                     ) : searchResults.length > 0 ? (
                       searchResults.map((card) => {
-                        const image = getSearchCardImage(card)
+                        const image = getSearchCardImage(card);
 
                         return (
                           <button
@@ -620,22 +729,36 @@ const DeckDetails = () => {
                           >
                             <div className="h-12 w-9 shrink-0 overflow-hidden bg-slate-800">
                               {image ? (
-                                <img src={image} alt="" className="h-full w-full object-cover" />
+                                <img
+                                  src={image}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
-                                <div className="flex h-full items-center justify-center text-xs text-slate-500">?</div>
+                                <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                                  ?
+                                </div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-white">{card.name}</p>
-                              <p className="truncate text-xs text-slate-400">{card.type_line}</p>
+                              <p className="truncate text-sm font-medium text-white">
+                                {card.name}
+                              </p>
+                              <p className="truncate text-xs text-slate-400">
+                                {card.type_line}
+                              </p>
                             </div>
                           </button>
-                        )
+                        );
                       })
                     ) : query.trim().length >= 2 ? (
-                      <div className="px-3 py-3 text-sm text-slate-400">No cards found</div>
+                      <div className="px-3 py-3 text-sm text-slate-400">
+                        No cards found
+                      </div>
                     ) : (
-                      <div className="px-3 py-3 text-sm text-slate-400">Type at least 2 characters</div>
+                      <div className="px-3 py-3 text-sm text-slate-400">
+                        Type at least 2 characters
+                      </div>
                     )}
                   </div>
                 )}
@@ -647,11 +770,15 @@ const DeckDetails = () => {
                 {groupedCards.map((group) => (
                   <section key={group.type} className="w-fit space-y-1">
                     <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">
-                      {group.type} (<span className="text-sm text-slate-400">{group.total}</span>)
+                      {group.type} (
+                      <span className="text-sm text-slate-400">
+                        {group.total}
+                      </span>
+                      )
                     </h2>
                     <div className="grid grid-cols-4 gap-1">
                       {group.cards.map((card) => {
-                        const image = getImageUri(card)
+                        const image = getImageUri(card);
 
                         return (
                           <div
@@ -661,7 +788,7 @@ const DeckDetails = () => {
                           >
                             <Image
                               loading="lazy"
-                              src={image || '/image/empty-deck-bg.png'}
+                              src={image || "/image/empty-deck-bg.png"}
                               alt={card.card_name}
                               width={200}
                               height={280}
@@ -681,7 +808,11 @@ const DeckDetails = () => {
                                 <div className="relative z-10">
                                   <button
                                     type="button"
-                                    onClick={() => setCardMenuId((current) => (current === card.id ? null : card.id))}
+                                    onClick={() =>
+                                      setCardMenuId((current) =>
+                                        current === card.id ? null : card.id,
+                                      )
+                                    }
                                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-violet-500 hover:text-white"
                                   >
                                     <OptionsIcon size={16} />
@@ -691,7 +822,7 @@ const DeckDetails = () => {
                                     // dropdown card menu
                                     <div
                                       ref={(el) => {
-                                        cardMenuRefs.current[card.id] = el
+                                        cardMenuRefs.current[card.id] = el;
                                       }}
                                       className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-white/10 bg-[#10161f] p-2 shadow-2xl shadow-black/50"
                                     >
@@ -701,7 +832,9 @@ const DeckDetails = () => {
                                         className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                                       >
                                         Add one
-                                        <span className="text-slate-500">+1</span>
+                                        <span className="text-slate-500">
+                                          +1
+                                        </span>
                                       </button>
                                       <button
                                         type="button"
@@ -709,18 +842,24 @@ const DeckDetails = () => {
                                         className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                                       >
                                         Add more
-                                        <span className="text-slate-500">Custom</span>
+                                        <span className="text-slate-500">
+                                          Custom
+                                        </span>
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleAddToWishlist(card)}
+                                        onClick={() =>
+                                          handleAddToWishlist(card)
+                                        }
                                         className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                                       >
                                         Add to wishlist
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleAddToCollection(card)}
+                                        onClick={() =>
+                                          handleAddToCollection(card)
+                                        }
                                         className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                                       >
                                         Add to collection
@@ -739,15 +878,21 @@ const DeckDetails = () => {
                                       >
                                         Copy name
                                       </button>
-                                      {card.section !== 'commander' && isCommanderCandidate(card, formatInfo || undefined) && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSetAsCommander(card)}
-                                          className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
-                                        >
-                                          Set as commander
-                                        </button>
-                                      )}
+                                      {card.section !== "commander" &&
+                                        isCommanderCandidate(
+                                          card,
+                                          formatInfo || undefined,
+                                        ) && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleSetAsCommander(card)
+                                            }
+                                            className="cursor-pointer flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                                          >
+                                            Set as commander
+                                          </button>
+                                        )}
                                       <button
                                         type="button"
                                         onClick={() => handleSetDeckImage(card)}
@@ -755,7 +900,7 @@ const DeckDetails = () => {
                                       >
                                         Set as deck image
                                       </button>
-                                      {card.section !== 'commander' && (
+                                      {card.section !== "commander" && (
                                         <button
                                           type="button"
                                           disabled={removingCardId === card.id}
@@ -771,7 +916,7 @@ const DeckDetails = () => {
                               </div>
                             )}
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </section>
@@ -789,15 +934,23 @@ const DeckDetails = () => {
       {quantityModalCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1118] p-6 shadow-2xl shadow-black/70">
-            <h2 className="text-lg font-semibold text-white">Add copies of {quantityModalCard.card_name}</h2>
-            <p className="mt-2 text-sm text-slate-400">Enter the number of additional copies to add to this deck.</p>
+            <h2 className="text-lg font-semibold text-white">
+              Add copies of {quantityModalCard.card_name}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Enter the number of additional copies to add to this deck.
+            </p>
             <div className="mt-5 flex items-center gap-3">
-              <label className="min-w-24 text-sm text-slate-300">Quantity</label>
+              <label className="min-w-24 text-sm text-slate-300">
+                Quantity
+              </label>
               <input
                 type="number"
                 value={quantityInput}
                 min={1}
-                onChange={(event) => setQuantityInput(Number(event.target.value) || 1)}
+                onChange={(event) =>
+                  setQuantityInput(Number(event.target.value) || 1)
+                }
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
               />
             </div>
@@ -821,7 +974,7 @@ const DeckDetails = () => {
         </div>
       )}
     </main>
-  )
-}
+  );
+};
 
-export default DeckDetails
+export default DeckDetails;
