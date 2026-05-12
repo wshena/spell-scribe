@@ -4,7 +4,7 @@ import { useState, useRef, type MouseEvent, useEffect } from "react";
 import Image from "next/image";
 import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import { CardProps } from "@/lib/scryfall/cards";
-import { BagAddIcon } from "@/components/icons/Icons";
+import { BagAddIcon, FlipIcon } from "@/components/icons/Icons";
 import { fetchCardRulings, RulingResponse } from "@/lib/scryfall/rulings";
 import {
   getManaSymbolMap,
@@ -61,7 +61,9 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
   const closeModal = useUtilityStore((state) => state.closeModal);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLDivElement>(null);
-  const [manaSymbolMap, setManaSymbolMap] = useState<Map<string, string>>(new Map());
+  const [manaSymbolMap, setManaSymbolMap] = useState<Map<string, string>>(
+    new Map(),
+  );
 
   const cardFace = card.card_faces?.[0];
   const imageUri = cardFace?.image_uris?.normal || card.image_uris?.normal;
@@ -69,11 +71,12 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
   const oracleText = cardFace?.oracle_text || card.oracle_text;
   const flavorText = card?.flavor_text || "";
   const artist = cardFace?.artist || card.artist;
-  const powerToughness = cardFace?.power !== undefined && cardFace?.toughness !== undefined
-    ? `${cardFace?.power}/${cardFace?.toughness}`
-    : card.power !== undefined && card.toughness !== undefined
-      ? `${card.power}/${card.toughness}`
-      : "";
+  const powerToughness =
+    cardFace?.power !== undefined && cardFace?.toughness !== undefined
+      ? `${cardFace?.power}/${cardFace?.toughness}`
+      : card.power !== undefined && card.toughness !== undefined
+        ? `${card.power}/${card.toughness}`
+        : "";
 
   const getManaSymbolsForCost = (cost?: string): ManaSymbolInfo[] => {
     return getManaCostSymbolsFromMap(cost ?? "", manaSymbolMap);
@@ -100,7 +103,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
         </span>
       ) : (
         <span key={`oracle-${idx}`}>{token.text}</span>
-      )
+      ),
     );
   };
 
@@ -156,6 +159,41 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
     fetchRulings();
   }, [card.id]);
 
+  const hasValidCardFaces =
+    card.card_faces &&
+    card.card_faces.length > 0 &&
+    card.card_faces.every((face) => face.image_uris?.normal);
+
+  const frontImageUri = hasValidCardFaces
+    ? card.card_faces![0].image_uris?.normal
+    : card.image_uris?.normal;
+
+  const backImageUri = hasValidCardFaces
+    ? card.card_faces![1]?.image_uris?.normal
+    : undefined;
+
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const [frontError, setFrontError] = useState(false);
+  const [backError, setBackError] = useState(false);
+  const [frontRetry, setFrontRetry] = useState(0);
+  const [backRetry, setBackRetry] = useState(0);
+
+  const handleFlip = () => {
+    if (!hasValidCardFaces || card.card_faces!.length < 2 || isAnimating)
+      return;
+    setIsAnimating(true);
+    setIsFlipped((prev) => !prev);
+    // Match duration to CSS transition (600ms)
+    setTimeout(() => setIsAnimating(false), 600);
+  };
+
+  const tiltStyle = {
+    transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+    transition: "transform 0.1s ease-out",
+  };
+
   return (
     <div className="w-[min(100vw,52rem)] max-h-[95vh] rounded-lg border border-white/10 bg-[#10161f] p-6 text-white shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
       {/* header */}
@@ -168,11 +206,13 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
         </button>
       </div>
 
-      <div className="relative h-[90%] flex flex-col gap-5 md:flex-row items-center md:items-start md:gap-3 overflow-y-auto
+      <div
+        className="relative h-[90%] flex flex-col gap-5 md:flex-row items-center md:items-start md:gap-3 overflow-y-auto
         [&::-webkit-scrollbar]:w-2
         [&::-webkit-scrollbar-track]:bg-none
         [&::-webkit-scrollbar-thumb]:bg-gray-300
-        [&::-webkit-scrollbar-thumb]:rounded-full">
+        [&::-webkit-scrollbar-thumb]:rounded-full"
+      >
         {/* card image */}
         <div className="md:sticky top-0 space-y-6 w-full md:w-[40%] h-fit">
           <div className="md:sticky top-0 space-y-6">
@@ -183,29 +223,130 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
               className="relative overflow-hidden"
               style={{ perspective: 1200 }}
             >
+              {/* Flip wrapper — handles the card flip animation */}
               <div
-                className="transition-transform duration-300 ease-out"
                 style={{
+                  cursor: "pointer",
+                  position: "relative",
+                  width: "100%",
                   transformStyle: "preserve-3d",
-                  transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+                  transition: "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)",
+                  transform: isFlipped
+                    ? `rotateY(180deg) rotateX(${rotation.x}deg)`
+                    : `rotateY(0deg) rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
                 }}
               >
-                <div className="relative overflow-hidden">
-                  {imageUri ? (
-                    <Image
-                      src={imageUri}
-                      alt={card.name}
-                      width={240}
-                      height={416}
-                      className="rounded-md w-full object-cover"
-                    />
+                {/* Front face */}
+                <div
+                  style={{
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                  }}
+                >
+                  {frontError ? (
+                    <div className="w-full aspect-200/280 bg-gray-700 rounded-md flex flex-col items-center justify-center text-white gap-2">
+                      <span className="text-sm">Image Error</span>
+                      <button
+                        onClick={() => {
+                          setFrontError(false);
+                          setFrontRetry(0);
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs cursor-pointer"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   ) : (
-                    <div className="flex h-112 items-center justify-center bg-slate-800 text-sm text-slate-400">
-                      Image not available
+                    <div
+                      className="cursor-pointer w-full block"
+                      style={tiltStyle}
+                    >
+                      <Image
+                        loading="lazy"
+                        src={
+                          frontRetry > 0
+                            ? `${frontImageUri}?retry=${frontRetry}`
+                            : frontImageUri || ""
+                        }
+                        alt={
+                          hasValidCardFaces
+                            ? card.card_faces![0].name
+                            : card.name
+                        }
+                        width={200}
+                        height={280}
+                        onError={() => {
+                          if (frontRetry < 5) setFrontRetry((p) => p + 1);
+                          else setFrontError(true);
+                        }}
+                        className="rounded-md w-full h-auto"
+                      />
                     </div>
                   )}
                 </div>
+
+                {/* Back face — only rendered if dual-faced */}
+                {hasValidCardFaces && backImageUri && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                    }}
+                  >
+                    {backError ? (
+                      <div className="w-full aspect-200/280 bg-gray-700 rounded-md flex flex-col items-center justify-center text-white gap-2">
+                        <span className="text-sm">Image Error</span>
+                        <button
+                          onClick={() => {
+                            setBackError(false);
+                            setBackRetry(0);
+                          }}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="cursor-pointer w-full block">
+                        <Image
+                          loading="lazy"
+                          src={
+                            backRetry > 0
+                              ? `${backImageUri}?retry=${backRetry}`
+                              : backImageUri
+                          }
+                          alt={card.card_faces![1].name}
+                          width={200}
+                          height={280}
+                          onError={() => {
+                            if (backRetry < 5) setBackRetry((p) => p + 1);
+                            else setBackError(true);
+                          }}
+                          className="rounded-md w-full h-auto"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Flip button */}
+              {hasValidCardFaces && card.card_faces!.length > 1 && (
+                <div className="absolute top-2 right-2 z-10">
+                  <button
+                    onClick={handleFlip}
+                    disabled={isAnimating}
+                    className={`cursor-pointer px-2 py-1 bg-violet-600 rounded-full hover:bg-violet-700 transition-all duration-300 ${
+                      isAnimating ? "scale-90 opacity-70" : "hover:scale-110"
+                    }`}
+                  >
+                    <FlipIcon size={15} color="white" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* add to wishlist */}
@@ -223,58 +364,65 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
           {/* name & mana cost */}
           {card.card_faces?.length ? (
             <>
-            {card.card_faces.map((face) => {
-              const faceManaSymbols = getManaSymbolsForCost(face.mana_cost);
-              return (
-                <div key={face.name} className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h2 className="mt-3 text-2xl lg:text-3xl font-semibold text-violet-500">
-                          {face.name}
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-400">{face.type_line}</p>
+              {card.card_faces.map((face) => {
+                const faceManaSymbols = getManaSymbolsForCost(face.mana_cost);
+                return (
+                  <div key={face.name} className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h2 className="mt-3 text-2xl lg:text-3xl font-semibold text-violet-500">
+                            {face.name}
+                          </h2>
+                          <p className="mt-1 text-sm text-slate-400">
+                            {face.type_line}
+                          </p>
+                        </div>
+
+                        {/* mana cost symbols */}
+                        {faceManaSymbols.length > 0 && (
+                          <div className="flex flex-wrap gap-1 items-start justify-end max-w-37.5">
+                            {faceManaSymbols.map((symbolInfo, idx: number) => (
+                              <div
+                                key={`${symbolInfo.symbol}-${symbolInfo.svgUri}-${idx}`}
+                                className="flex items-center justify-center w-6 h-6"
+                                title={symbolInfo.symbol}
+                              >
+                                <Image
+                                  src={symbolInfo.svgUri}
+                                  alt={symbolInfo.symbol}
+                                  width={24}
+                                  height={24}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {/* mana cost symbols */}
-                      {faceManaSymbols.length > 0 && (
-                        <div className="flex flex-wrap gap-1 items-start justify-end max-w-37.5">
-                          {faceManaSymbols.map((symbolInfo, idx:number) => (
-                            <div
-                              key={`${symbolInfo.symbol}-${symbolInfo.svgUri}-${idx}`}
-                              className="flex items-center justify-center w-6 h-6"
-                              title={symbolInfo.symbol}
-                            >
-                              <Image
-                                src={symbolInfo.svgUri}
-                                alt={symbolInfo.symbol}
-                                width={24}
-                                height={24}
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <p className="text-xs text-slate-500">
+                        #{card.collector_number},{" "}
+                        {card.rarity.charAt(0).toUpperCase() +
+                          card.rarity.slice(1)}
+                        , {card.border_color}
+                      </p>
                     </div>
 
-                    <p className="text-xs text-slate-500">
-                      #{card.collector_number}, {card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)}, {card.border_color}
-                    </p>
+                    {/* oracle text */}
+                    <div className="space-y-2">
+                      <p className="text-sm md:text-md whitespace-pre-line leading-6 text-slate-100">
+                        {renderOracleText(face.oracle_text)}
+                      </p>
+                      {flavorText ? (
+                        <p className="text-sm italic text-slate-400">
+                          {flavorText}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-
-                  {/* oracle text */}
-                  <div className="space-y-2">
-                    <p className="text-sm md:text-md whitespace-pre-line leading-6 text-slate-100">
-                      {renderOracleText(face.oracle_text)}
-                    </p>
-                    {flavorText ? (
-                      <p className="text-sm italic text-slate-400">{flavorText}</p>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </>
           ) : (
             <div className="space-y-5">
@@ -284,7 +432,9 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
                     <h2 className="mt-3 text-2xl lg:text-3xl font-semibold text-violet-500">
                       {card.name}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-400">{card.type_line}</p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {card.type_line}
+                    </p>
                   </div>
                   {/* mana cost symbols */}
                   {singleManaSymbols.length > 0 && (
@@ -308,7 +458,9 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
                   )}
                 </div>
                 <p className="text-xs text-slate-500">
-                  #{card.collector_number}, {card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)}, {card.border_color}
+                  #{card.collector_number},{" "}
+                  {card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)},{" "}
+                  {card.border_color}
                 </p>
               </div>
 
@@ -326,10 +478,17 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
 
           {/* card set info */}
           <div className="text-sm md:text-md text-gray-400 flex flex-col items-start">
-            <span><strong className="text-white">{card?.set_name}</strong> ({card?.set.toUpperCase()})</span>
-            <span>#{card?.collector_number}, {card?.rarity.charAt(0).toUpperCase() + card?.rarity.slice(1)}, {card?.border_color}</span>
+            <span>
+              <strong className="text-white">{card?.set_name}</strong> (
+              {card?.set.toUpperCase()})
+            </span>
+            <span>
+              #{card?.collector_number},{" "}
+              {card?.rarity.charAt(0).toUpperCase() + card?.rarity.slice(1)},{" "}
+              {card?.border_color}
+            </span>
           </div>
-          
+
           <div className="space-y-1">
             {/* cmc & release date */}
             <div className="grid gap-0 md:grid-cols-2">
@@ -348,7 +507,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
                 </p>
               </div>
             </div>
-            
+
             {/* artist & power/toughness */}
             <div className="grid gap-0 md:grid-cols-2">
               <div className="flex items-center gap-1">
@@ -375,7 +534,8 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
             <h2 className="text-lg font-bold text-white">Legalities</h2>
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
               {legalityEntries.map(([format, status]) => {
-                const statusStyle = legalityStyles[status] || legalityStyles.not_legal;
+                const statusStyle =
+                  legalityStyles[status] || legalityStyles.not_legal;
 
                 return (
                   <div
@@ -401,11 +561,16 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
           <div className="space-y-2">
             <h2 className="text-lg font-bold text-white">Rulings</h2>
             {rulingsLoading ? (
-              <p className="text-sm text-slate-400 italic">Loading rulings...</p>
+              <p className="text-sm text-slate-400 italic">
+                Loading rulings...
+              </p>
             ) : cardRulings?.data?.length ? (
               <ul className="space-y-2">
                 {cardRulings.data.map((ruling) => (
-                  <li key={`${ruling.object} - ${ruling.published_at} - ${ruling.comment}`} className="text-sm text-slate-300 flex flex-col gap-1">
+                  <li
+                    key={`${ruling.object} - ${ruling.published_at} - ${ruling.comment}`}
+                    className="text-sm text-slate-300 flex flex-col gap-1"
+                  >
                     <span className="text-xs text-slate-500">
                       {ruling.published_at}
                     </span>
@@ -417,7 +582,6 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
               <p className="text-sm text-slate-300">No rulings available.</p>
             )}
           </div>
-
         </div>
       </div>
     </div>
