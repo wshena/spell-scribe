@@ -17,6 +17,7 @@ import CardOnDeck, {
   hasDeckCardBackFace,
 } from "@/components/cards/CardOnDeck";
 import Image from "next/image";
+import DeckManaBreakdown from "@/components/decks/DeckManaBreakdown";
 
 interface DeckData {
   id: string;
@@ -871,6 +872,10 @@ const DeckDetails = () => {
               </div>
             )}
           </section>
+        </div>
+
+        <div className="mt-10">
+          <DeckManaBreakdown cards={deck.cards} />
         </div>
       </ContentContainer>
 

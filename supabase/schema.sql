@@ -24,6 +24,7 @@ CREATE TABLE public.deck_cards (
     color_identity TEXT[] DEFAULT ARRAY[]::TEXT[],
     image_uris JSONB,
     card_faces JSONB,
+    card_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
 
@@ -50,6 +51,7 @@ CREATE INDEX idx_decks_format ON public.decks(format);
 CREATE INDEX idx_decks_visibility ON public.decks(visibility);
 CREATE INDEX idx_deck_cards_deck_id ON public.deck_cards(deck_id);
 CREATE INDEX idx_deck_cards_section ON public.deck_cards(section);
+CREATE INDEX idx_deck_cards_card_data ON public.deck_cards USING GIN (card_data);
 CREATE INDEX idx_deck_history_user_last_accessed ON public.deck_history(user_id, last_accessed_at DESC);
 CREATE INDEX idx_deck_history_deck_id ON public.deck_history(deck_id);
 
@@ -123,6 +125,8 @@ CREATE TRIGGER handle_decks_updated_at
 CREATE TRIGGER handle_deck_cards_updated_at
     BEFORE UPDATE ON public.deck_cards
     FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
+COMMENT ON COLUMN public.deck_cards.card_data IS 'Complete card object from Scryfall API stored as JSON. Contains mana cost, oracle text, produced mana, legalities, and related metadata.';
 
 -- Function to record recent deck activity for a user
 CREATE OR REPLACE FUNCTION public.record_deck_history(

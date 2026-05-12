@@ -125,6 +125,7 @@ export interface CardProps {
   card_faces?: CardFace[];
   flavor_text?: string;
   border_color?: string;
+  produced_mana?: string[];
 }
 
 function getScryfallBaseURL() {

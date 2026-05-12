@@ -31,11 +31,11 @@ export function getManaColorSymbolMap(
     symbols
       .filter(
         (s) =>
-          s.colors.length === 1 &&
           s.appears_in_mana_costs &&
           !s.hybrid &&
-          !s.phyrexian,
+          !s.phyrexian &&
+          (s.colors.length === 1 || s.symbol === "{C}"),
       )
-      .map((s) => [s.colors[0], s.svg_uri]),
+      .map((s) => [s.symbol === "{C}" ? "C" : s.colors[0], s.svg_uri]),
   );
 }
