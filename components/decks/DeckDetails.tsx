@@ -593,7 +593,7 @@ const DeckDetails = () => {
             <>
               {/* Art crop di kanan */}
               <div
-                className="absolute inset-0 bg-cover bg-right bg-no-repeat"
+                className="absolute inset-0 bg-cover bg-position-[top_-180px_right_0px] bg-no-repeat"
                 style={{ backgroundImage: `url(${artCropImage})` }}
               />
               {/* Gradient: solid ungu di kiri, fade ke transparan di kanan */}

@@ -4,7 +4,7 @@ import { useState, useRef, type MouseEvent, useEffect } from "react";
 import Image from "next/image";
 import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import { CardProps } from "@/lib/scryfall/cards";
-import { BagAddIcon, FlipIcon } from "@/components/icons/Icons";
+import { BagAddIcon, FlipIcon, PlusIcon } from "@/components/icons/Icons";
 import { fetchCardRulings, RulingResponse } from "@/lib/scryfall/rulings";
 import {
   getManaSymbolMap,
@@ -12,6 +12,7 @@ import {
   tokenizeManaText,
   ManaSymbolInfo,
 } from "@/lib/scryfall/manaSymbols";
+import AddCardToDeckModal from "./AddCardToDeckModal";
 
 const legalityLabels: Record<string, string> = {
   standard: "Standard",
@@ -59,6 +60,8 @@ const legalityStyles: Record<string, { icon: string; className: string }> = {
 
 const CardDetailModal = ({ card }: { card: CardProps }) => {
   const closeModal = useUtilityStore((state) => state.closeModal);
+  const openModal = useUtilityStore((state) => state.openModal);
+
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLDivElement>(null);
   const [manaSymbolMap, setManaSymbolMap] = useState<Map<string, string>>(
@@ -66,7 +69,6 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
   );
 
   const cardFace = card.card_faces?.[0];
-  const imageUri = cardFace?.image_uris?.normal || card.image_uris?.normal;
   const manaCost = cardFace?.mana_cost || card.mana_cost;
   const oracleText = cardFace?.oracle_text || card.oracle_text;
   const flavorText = card?.flavor_text || "";
@@ -214,7 +216,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
         [&::-webkit-scrollbar-thumb]:rounded-full"
       >
         {/* card image */}
-        <div className="md:sticky top-0 space-y-6 w-full md:w-[40%] h-fit">
+        <div className="sticky top-0 space-y-6 w-full md:w-[40%] h-fit">
           <div className="md:sticky top-0 space-y-6">
             <div
               ref={imageRef}
@@ -349,11 +351,22 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
               )}
             </div>
 
-            {/* add to wishlist */}
-            <div className="flex items-center justify-center w-full">
-              <button className="cursor-pointer border border-violet-500 bg-violet-600/20 hover:bg-violet-700 text-white text-sm py-1 px-4 rounded-sm flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-5">
+              {/* add to wishlist */}
+              <button className="text-xs cursor-pointer border border-violet-500 bg-violet-600/20 hover:bg-violet-700 text-white py-1 px-4 rounded-sm flex items-center gap-2">
                 <BagAddIcon size={15} style="text-violet-300" />
                 Add to Wishlist
+              </button>
+
+              {/* add to deck */}
+              <button
+                onClick={() => {
+                  openModal(<AddCardToDeckModal card={card} />);
+                }}
+                className="text-xs cursor-pointer border border-violet-500 bg-violet-600/20 hover:bg-violet-700 text-white py-1 px-4 rounded-sm flex items-center gap-2"
+              >
+                <PlusIcon size={15} style="text-violet-300" />
+                Add to Deck
               </button>
             </div>
           </div>

@@ -139,7 +139,7 @@ export default async function DeckSearchPage({ params, searchParams }: Props) {
                   )}
                 </div>
 
-                <Link href={`/deck/${id}`}>
+                <Link href={`/decks/${id}`}>
                   <div className="p-2 w-fit flex items-center gap-3 rounded-sm text-white bg-violet-500 capitalize">
                     <AngleLeftIcon size={15} color="white" />
                     <span>back to deck</span>
