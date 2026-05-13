@@ -874,7 +874,7 @@ const DeckDetails = () => {
           </section>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-20">
           <DeckManaBreakdown cards={deck.cards} />
         </div>
       </ContentContainer>

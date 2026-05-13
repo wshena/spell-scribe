@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { fetchCardManaSymbols } from "@/lib/scryfall/cardSymbols";
-import { getManaColorSymbolMap } from "@/lib/utils";
+import { cn, getManaColorSymbolMap } from "@/lib/utils";
 import { analyzeDeckMana, DeckManaCard } from "@/lib/utils/deckManaAnalytics";
 
 interface DeckManaBreakdownProps {
@@ -82,10 +82,16 @@ const DeckManaBreakdown = ({ cards }: DeckManaBreakdownProps) => {
           const theme = colorTheme[stat.key];
 
           return (
-            <article key={stat.key} className="p-5">
-              <div className="mb-5">
+            <article
+              key={stat.key}
+              className={cn(
+                "p-5",
+                stat.demandPercent === 0 ? "opacity-50" : "opacity-100",
+              )}
+            >
+              <div className="mb-5 flex flex-col items-center">
                 <div
-                  className={`mb-4 flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold ${theme.chipClassName}`}
+                  className={`mb-4 flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold`}
                 >
                   {colorSymbolMap.get(stat.symbol) ? (
                     <Image
@@ -93,7 +99,7 @@ const DeckManaBreakdown = ({ cards }: DeckManaBreakdownProps) => {
                       alt={`${stat.label} mana`}
                       width={34}
                       height={34}
-                      className="h-8 w-8"
+                      className="h-13 w-13"
                     />
                   ) : (
                     stat.symbol
@@ -117,7 +123,7 @@ const DeckManaBreakdown = ({ cards }: DeckManaBreakdownProps) => {
                     style={{ width: `${stat.supplyPercent}%` }}
                   />
                 </div>
-                <div className="space-y-1 text-xs text-slate-500">
+                <div className="space-y-1 text-xs text-slate-500 text-center">
                   <p>{stat.supplyPercent}% of land mana sources</p>
                   <p>
                     {stat.landCoveragePercent}% of lands can produce this color
