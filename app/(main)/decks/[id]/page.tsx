@@ -1,18 +1,17 @@
-
-import { Metadata } from 'next'
-import dynamic from 'next/dynamic'
-import { getDeck } from '@/lib/supabase/decks'
-import DeckDetails from '@/components/decks/DeckDetails'
+import { Metadata } from "next";
+import dynamic from "next/dynamic";
+import { getDeck } from "@/lib/supabase/decks";
+import DeckDetails from "@/components/decks/DeckDetails";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id: id } = await params
-  
+  const { id: id } = await params;
+
   try {
-    const deckDetails = await getDeck(id)
+    const deckDetails = await getDeck(id);
     return {
       title: `${deckDetails?.name} | SpellScribe - MTG Deck Builder`,
       description: `Explore the ${deckDetails?.name} deck. Browse cards, build powerful decks with SpellScribe.`,
@@ -28,19 +27,17 @@ export async function generateMetadata({
         description: `Explore the ${deckDetails?.name} deck`,
         type: "website",
       },
-    }
+    };
   } catch (error) {
     return {
       title: "Deck Not Found | SpellScribe",
       description: "This MTG deck could not be found.",
-    }
+    };
   }
 }
 
 const DeckPage = () => {
-  return (
-    <DeckDetails />
-  )
-}
+  return <DeckDetails />;
+};
 
-export default DeckPage
+export default DeckPage;

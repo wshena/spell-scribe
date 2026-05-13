@@ -19,6 +19,8 @@ import CardOnDeck, {
 import Image from "next/image";
 import DeckManaBreakdown from "@/components/decks/DeckManaBreakdown";
 import ChangeDeckImageModal from "../ui/modal/ChangeDeckImageModal";
+import DeckChangesHistory from "./DeckChangesHistory";
+import type { DeckChangeAction } from "@/lib/supabase/deckChanges";
 
 interface DeckData {
   id: string;
@@ -73,7 +75,6 @@ function getImageArtCrop(
 
 function getPrimaryType(typeLine?: string | null) {
   if (!typeLine) return "Other";
-
   const lowerTypeLine = typeLine.toLowerCase();
   const matchedType = typeOrder.find((type) =>
     lowerTypeLine.includes(type.toLowerCase()),
@@ -100,12 +101,7 @@ function isCommanderCandidate(
 }
 
 function deckCardToCardProps(card: DeckCard): CardProps {
-  // If we have the complete card_data stored, use it directly
-  if (card.card_data) {
-    return card.card_data;
-  }
-
-  // Fallback to constructed CardProps from individual fields
+  if (card.card_data) return card.card_data;
   return {
     id: card.card_id,
     name: card.card_name,
@@ -149,8 +145,38 @@ const DeckDetails = () => {
   const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [showChangeCoverModal, setShowChangeCoverModal] = useState(false);
 
+  // Ref to trigger history refresh from DeckChangesHistory
+  const [historyKey, setHistoryKey] = useState(0);
+  const refreshHistory = () => setHistoryKey((k) => k + 1);
+
   const deckId = params.id as string;
 
+  // ─── Fire-and-forget change recorder ──────────────────────────────────────
+  const recordChange = useCallback(
+    (
+      action: DeckChangeAction,
+      extras?: {
+        cardId?: string;
+        cardName?: string;
+        quantityDelta?: number;
+        oldValue?: string;
+        newValue?: string;
+      },
+    ) => {
+      if (!deckId) return;
+      fetch(`/api/decks/${deckId}/changes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extras }),
+        keepalive: true,
+      })
+        .then(() => refreshHistory())
+        .catch(() => {});
+    },
+    [deckId],
+  );
+
+  // ─── Fetch deck ────────────────────────────────────────────────────────────
   const fetchDeck = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -171,20 +197,14 @@ const DeckDetails = () => {
     } catch (err: unknown) {
       console.error("Error fetching deck:", err);
       setError(getErrorMessage(err, "Failed to load deck"));
-      setAlert({
-        label: "Failed to load deck",
-        type: "error",
-      });
+      setAlert({ label: "Failed to load deck", type: "error" });
     } finally {
       setIsLoading(false);
     }
   }, [deckId, setAlert]);
 
   useEffect(() => {
-    if (deckId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchDeck();
-    }
+    if (deckId) fetchDeck();
   }, [deckId, fetchDeck]);
 
   useEffect(() => {
@@ -195,7 +215,6 @@ const DeckDetails = () => {
       ) {
         setShowResults(false);
       }
-
       if (cardMenuId) {
         const menuElement = cardMenuRefs.current[cardMenuId];
         if (menuElement && !menuElement.contains(event.target as Node)) {
@@ -203,7 +222,6 @@ const DeckDetails = () => {
         }
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [cardMenuId]);
@@ -214,7 +232,6 @@ const DeckDetails = () => {
         setSearchResults([]);
         return;
       }
-
       setIsSearching(true);
       try {
         const cards = await fetchCardsByName(query);
@@ -226,7 +243,6 @@ const DeckDetails = () => {
         setIsSearching(false);
       }
     };
-
     const debounceTimer = setTimeout(searchCards, 300);
     return () => clearTimeout(debounceTimer);
   }, [isOwner, query]);
@@ -238,7 +254,6 @@ const DeckDetails = () => {
 
   const groupedCards = useMemo(() => {
     const groups = new Map<string, DeckCard[]>();
-
     deck?.cards.forEach((card) => {
       const groupName =
         card.section === "commander"
@@ -247,7 +262,6 @@ const DeckDetails = () => {
       const existingGroup = groups.get(groupName) || [];
       groups.set(groupName, [...existingGroup, card]);
     });
-
     return Array.from(groups.entries())
       .sort(([a], [b]) => typeOrder.indexOf(a) - typeOrder.indexOf(b))
       .map(([type, cards]) => ({
@@ -288,16 +302,15 @@ const DeckDetails = () => {
     deck?.commander?.name ||
     "Deck preview";
 
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
   const handleAddCard = async (card: CardProps) => {
     if (!deck) return;
-
     setAddingCardId(card.id);
     try {
       const response = await fetch(`/api/decks/${deck.id}/cards`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           card_id: card.id,
           card_name: card.name,
@@ -309,7 +322,7 @@ const DeckDetails = () => {
           image_uris:
             card.image_uris || card.card_faces?.[0]?.image_uris || null,
           card_faces: card.card_faces || null,
-          card_data: card, // Store complete card object
+          card_data: card,
         }),
       });
 
@@ -318,10 +331,14 @@ const DeckDetails = () => {
         throw new Error(errorData?.error || "Failed to add card");
       }
 
-      setAlert({
-        label: `${card.name} added to deck`,
-        type: "success",
+      // Record change after successful add
+      recordChange("card_added", {
+        cardId: card.id,
+        cardName: card.name,
+        quantityDelta: 1,
       });
+
+      setAlert({ label: `${card.name} added to deck`, type: "success" });
       setQuery("");
       setSearchResults([]);
       setShowResults(false);
@@ -338,23 +355,35 @@ const DeckDetails = () => {
 
   const handleUpdateCardQuantity = async (card: DeckCard, quantity: number) => {
     if (!deck) return;
+    const previousQuantity = card.quantity;
 
     try {
       const response = await fetch(`/api/decks/${deck.id}/cards`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cardId: card.card_id,
+          cardName: card.card_name,
           section: card.section,
           quantity,
+          previousQuantity,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || "Failed to update card quantity");
+      }
+
+      // Record change — API route calculates delta, but we also do it here
+      // for immediate history refresh
+      const delta = quantity - previousQuantity;
+      if (delta !== 0) {
+        recordChange("card_quantity_changed", {
+          cardId: card.card_id,
+          cardName: card.card_name,
+          quantityDelta: delta,
+        });
       }
 
       await fetchDeck();
@@ -486,18 +515,22 @@ const DeckDetails = () => {
     try {
       const response = await fetch(`/api/decks/${deck.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          commander: deckCardToCardProps(card),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commander: deckCardToCardProps(card) }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || "Failed to set commander");
       }
+
+      // Record commander change with old/new values
+      recordChange("commander_changed", {
+        cardId: card.card_id,
+        cardName: card.card_name,
+        oldValue: deck.commander?.name ?? undefined,
+        newValue: card.card_name,
+      });
 
       setAlert({
         label: `${card.card_name} is now the commander`,
@@ -521,20 +554,16 @@ const DeckDetails = () => {
   };
 
   const handleCardFlipChange = (card: DeckCard, isCardFlipped: boolean) => {
-    setFlippedCards((current) => ({
-      ...current,
-      [card.id]: isCardFlipped,
-    }));
+    setFlippedCards((current) => ({ ...current, [card.id]: isCardFlipped }));
     setHoveredCard(card);
   };
 
   const handleRemoveCard = async (card: DeckCard) => {
     if (!deck) return;
-
     setRemovingCardId(card.id);
     try {
       const response = await fetch(
-        `/api/decks/${deck.id}/cards?cardId=${encodeURIComponent(card.card_id)}&section=${encodeURIComponent(card.section)}`,
+        `/api/decks/${deck.id}/cards?cardId=${encodeURIComponent(card.card_id)}&section=${encodeURIComponent(card.section)}&cardName=${encodeURIComponent(card.card_name)}&quantity=${card.quantity}`,
         { method: "DELETE" },
       );
 
@@ -542,6 +571,13 @@ const DeckDetails = () => {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || "Failed to remove card");
       }
+
+      // Record removal
+      recordChange("card_removed", {
+        cardId: card.card_id,
+        cardName: card.card_name,
+        quantityDelta: -card.quantity,
+      });
 
       setAlert({
         label: `${card.card_name} removed from deck`,
@@ -562,6 +598,8 @@ const DeckDetails = () => {
     setDeckCoverCard(card);
     setAlert({ label: `${card.card_name} set as deck cover`, type: "success" });
   };
+
+  // ─── Loading / error states ────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -598,14 +636,11 @@ const DeckDetails = () => {
         <div className="absolute inset-0">
           {artCropImage ? (
             <>
-              {/* Art crop di kanan */}
               <div
                 className="absolute inset-0 bg-cover bg-position-[top_-180px_right_0px] bg-no-repeat"
                 style={{ backgroundImage: `url(${artCropImage})` }}
               />
-              {/* Gradient: solid ungu di kiri, fade ke transparan di kanan */}
               <div className="absolute inset-0 bg-[linear-gradient(to_right,#4a148c_30%,rgba(74,20,140,0.85)_55%,transparent_100%)]" />
-              {/* Overlay tipis supaya teks tetap terbaca */}
               <div className="absolute inset-0 bg-[#4a148c]/30" />
             </>
           ) : (
@@ -648,7 +683,6 @@ const DeckDetails = () => {
             </div>
           </ContentContainer>
 
-          {/* change deck image cover */}
           {isOwner && (
             <div className="absolute bottom-5 left-0 w-full flex items-center justify-end">
               <button
@@ -663,7 +697,6 @@ const DeckDetails = () => {
           )}
         </div>
       </section>
-      {/* header */}
 
       <ContentContainer>
         <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
@@ -706,7 +739,6 @@ const DeckDetails = () => {
                             className="h-full w-full object-cover"
                           />
                         </div>
-
                         {previewHasBackFace && previewBackImage && (
                           <div
                             className="absolute inset-0 overflow-hidden rounded-lg"
@@ -762,7 +794,6 @@ const DeckDetails = () => {
             </section>
           </aside>
 
-          {/* search form */}
           <section className="space-y-5">
             {isOwner && (
               <div ref={searchRef} className="relative space-y-1">
@@ -782,10 +813,7 @@ const DeckDetails = () => {
                     className="w-full bg-slate-900 py-2 text-white placeholder-slate-500 outline-none transition focus:border-violet-500"
                   />
                 </div>
-
-                {/* advance button */}
                 <AdvanceSearchButton type="deck" deckId={deck.id} />
-
                 {showResults && (
                   <div className="absolute left-0 right-4 top-full z-30 mt-1 max-h-80 overflow-y-auto border border-slate-700 bg-slate-950 shadow-2xl shadow-black/50">
                     {isSearching ? (
@@ -795,7 +823,6 @@ const DeckDetails = () => {
                     ) : searchResults.length > 0 ? (
                       searchResults.map((card) => {
                         const image = getSearchCardImage(card);
-
                         return (
                           <button
                             key={card.id}
@@ -841,7 +868,6 @@ const DeckDetails = () => {
                 )}
               </div>
             )}
-            {/* search form */}
 
             {groupedCards.length > 0 ? (
               <div className="flex flex-col gap-4">
@@ -901,7 +927,16 @@ const DeckDetails = () => {
           </section>
         </div>
 
-        <div className="mt-20">
+        <div className="mt-10">
+          {/* key forces re-mount / re-fetch when a change is recorded */}
+          <DeckChangesHistory
+            key={historyKey}
+            deckId={deck.id}
+            previewCount={5}
+          />
+        </div>
+
+        <div className="mt-10">
           <DeckManaBreakdown cards={deck.cards} />
         </div>
       </ContentContainer>

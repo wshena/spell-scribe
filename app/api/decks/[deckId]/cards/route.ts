@@ -1,128 +1,168 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 import {
   addCardToDeck,
   updateCardInDeck,
   removeCardFromDeck,
   getDeckStats,
   validateDeck,
-  DeckCard
-} from '@/lib/supabase/decks'
+  DeckCard,
+} from "@/lib/supabase/decks";
+import { recordDeckChange } from "@/lib/supabase/deckChanges";
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
+  return error instanceof Error ? error.message : fallback;
 }
 
 // POST /api/decks/[deckId]/cards - Add card to deck
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ deckId: string }> }
+  { params }: { params: Promise<{ deckId: string }> },
 ) {
   try {
-    const { deckId } = await params
-    const body = await request.json()
-    const card: DeckCard = body
+    const { deckId } = await params;
+    const body = await request.json();
+    const card: DeckCard = body;
 
     if (!card.card_id || !card.card_name || !card.quantity || !card.section) {
       return NextResponse.json(
-        { error: 'Missing required fields: card_id, card_name, quantity, section' },
-        { status: 400 }
-      )
+        {
+          error:
+            "Missing required fields: card_id, card_name, quantity, section",
+        },
+        { status: 400 },
+      );
     }
 
-    const deckCard = await addCardToDeck(deckId, card)
+    const deckCard = await addCardToDeck(deckId, card);
 
-    // Get updated stats and validation
-    const stats = await getDeckStats(deckId)
-    const validation = await validateDeck(deckId)
+    // Record history (fire-and-forget)
+    // recordDeckChange({
+    //   deckId,
+    //   action: "card_added",
+    //   cardId: card.card_id,
+    //   cardName: card.card_name,
+    //   quantityDelta: card.quantity,
+    // });
 
-    return NextResponse.json({
-      card: deckCard,
-      stats,
-      validation
-    }, { status: 201 })
+    const stats = await getDeckStats(deckId);
+    const validation = await validateDeck(deckId);
 
-  } catch (error: unknown) {
-    console.error('Error adding card to deck:', error)
     return NextResponse.json(
-      { error: getErrorMessage(error, 'Failed to add card to deck') },
-      { status: 500 }
-    )
+      { card: deckCard, stats, validation },
+      { status: 201 },
+    );
+  } catch (error: unknown) {
+    console.error("Error adding card to deck:", error);
+    return NextResponse.json(
+      { error: getErrorMessage(error, "Failed to add card to deck") },
+      { status: 500 },
+    );
   }
 }
 
-// PUT /api/decks/[deckId]/cards - Update card in deck
+// PUT /api/decks/[deckId]/cards - Update card quantity in deck
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ deckId: string }> }
+  { params }: { params: Promise<{ deckId: string }> },
 ) {
   try {
-    const { deckId } = await params
-    const body = await request.json()
-    const { cardId, section, quantity }: { cardId: string; section: string; quantity: number } = body
+    const { deckId } = await params;
+    const body = await request.json();
+    const {
+      cardId,
+      cardName,
+      section,
+      quantity,
+      previousQuantity,
+    }: {
+      cardId: string;
+      cardName?: string;
+      section: string;
+      quantity: number;
+      previousQuantity?: number;
+    } = body;
 
     if (!cardId || !section || quantity === undefined) {
       return NextResponse.json(
-        { error: 'Missing required fields: cardId, section, quantity' },
-        { status: 400 }
-      )
+        { error: "Missing required fields: cardId, section, quantity" },
+        { status: 400 },
+      );
     }
 
-    const updatedCard = await updateCardInDeck(deckId, cardId, section, quantity)
+    const updatedCard = await updateCardInDeck(
+      deckId,
+      cardId,
+      section,
+      quantity,
+    );
 
-    // Get updated stats and validation
-    const stats = await getDeckStats(deckId)
-    const validation = await validateDeck(deckId)
+    // Record history — calculate delta if previousQuantity provided
+    // if (previousQuantity !== undefined) {
+    //   const delta = quantity - previousQuantity;
+    //   if (delta !== 0) {
+    //     recordDeckChange({
+    //       deckId,
+    //       action: "card_quantity_changed",
+    //       cardId,
+    //       cardName: cardName ?? updatedCard.card_name,
+    //       quantityDelta: delta,
+    //     });
+    //   }
+    // }
 
-    return NextResponse.json({
-      card: updatedCard,
-      stats,
-      validation
-    })
+    const stats = await getDeckStats(deckId);
+    const validation = await validateDeck(deckId);
 
+    return NextResponse.json({ card: updatedCard, stats, validation });
   } catch (error: unknown) {
-    console.error('Error updating card in deck:', error)
+    console.error("Error updating card in deck:", error);
     return NextResponse.json(
-      { error: getErrorMessage(error, 'Failed to update card in deck') },
-      { status: 500 }
-    )
+      { error: getErrorMessage(error, "Failed to update card in deck") },
+      { status: 500 },
+    );
   }
 }
 
 // DELETE /api/decks/[deckId]/cards - Remove card from deck
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ deckId: string }> }
+  { params }: { params: Promise<{ deckId: string }> },
 ) {
   try {
-    const { deckId } = await params
-    const { searchParams } = new URL(request.url)
-    const cardId = searchParams.get('cardId')
-    const section = searchParams.get('section')
+    const { deckId } = await params;
+    const { searchParams } = new URL(request.url);
+    const cardId = searchParams.get("cardId");
+    const section = searchParams.get("section");
+    const cardName = searchParams.get("cardName");
+    const quantity = searchParams.get("quantity");
 
     if (!cardId || !section) {
       return NextResponse.json(
-        { error: 'Missing required query parameters: cardId, section' },
-        { status: 400 }
-      )
+        { error: "Missing required query parameters: cardId, section" },
+        { status: 400 },
+      );
     }
 
-    await removeCardFromDeck(deckId, cardId, section)
+    await removeCardFromDeck(deckId, cardId, section);
 
-    // Get updated stats and validation
-    const stats = await getDeckStats(deckId)
-    const validation = await validateDeck(deckId)
+    // Record history
+    // recordDeckChange({
+    //   deckId,
+    //   action: "card_removed",
+    //   cardId,
+    //   cardName: cardName ?? undefined,
+    //   quantityDelta: quantity ? -Math.abs(parseInt(quantity)) : -1,
+    // });
 
-    return NextResponse.json({
-      success: true,
-      stats,
-      validation
-    })
+    const stats = await getDeckStats(deckId);
+    const validation = await validateDeck(deckId);
 
+    return NextResponse.json({ success: true, stats, validation });
   } catch (error: unknown) {
-    console.error('Error removing card from deck:', error)
+    console.error("Error removing card from deck:", error);
     return NextResponse.json(
-      { error: getErrorMessage(error, 'Failed to remove card from deck') },
-      { status: 500 }
-    )
+      { error: getErrorMessage(error, "Failed to remove card from deck") },
+      { status: 500 },
+    );
   }
 }
