@@ -7,7 +7,7 @@ import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import { CardProps, fetchCardsByName } from "@/lib/scryfall/cards";
 import { formatDecks } from "@/lib/constants";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
-import { SearchIcon } from "@/components/icons/Icons";
+import { EditIcon, SearchIcon } from "@/components/icons/Icons";
 import CardDetailModal from "@/components/ui/modal/CardDetailModal";
 import { formatRelativeTime } from "@/lib/utils/deckUtils";
 import AdvanceSearchButton from "../ui/button/AdvanceSearchButton";
@@ -18,6 +18,7 @@ import CardOnDeck, {
 } from "@/components/cards/CardOnDeck";
 import Image from "next/image";
 import DeckManaBreakdown from "@/components/decks/DeckManaBreakdown";
+import ChangeDeckImageModal from "../ui/modal/ChangeDeckImageModal";
 
 interface DeckData {
   id: string;
@@ -146,6 +147,7 @@ const DeckDetails = () => {
   const [deckCoverCard, setDeckCoverCard] = useState<DeckCard | null>(null);
   const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
   const cardMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [showChangeCoverModal, setShowChangeCoverModal] = useState(false);
 
   const deckId = params.id as string;
 
@@ -556,6 +558,11 @@ const DeckDetails = () => {
     }
   };
 
+  const handleSaveDeckCover = (card: DeckCard) => {
+    setDeckCoverCard(card);
+    setAlert({ label: `${card.card_name} set as deck cover`, type: "success" });
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b0f14] text-white">
@@ -630,7 +637,7 @@ const DeckDetails = () => {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3 text-sm text-slate-300">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
                   <span>{totalCards} cards</span>
                   <span>Updated {formatRelativeTime(deck.updated_at)}</span>
                   {deck.commander && (
@@ -640,6 +647,20 @@ const DeckDetails = () => {
               </div>
             </div>
           </ContentContainer>
+
+          {/* change deck image cover */}
+          {isOwner && (
+            <div className="absolute bottom-5 left-0 w-full flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowChangeCoverModal(true)}
+                className="mr-5 cursor-pointer inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-300 hover:underline hover:text-white transition"
+              >
+                Change cover image
+                <EditIcon size={15} color="white" />
+              </button>
+            </div>
+          )}
         </div>
       </section>
       {/* header */}
@@ -927,6 +948,14 @@ const DeckDetails = () => {
           </div>
         </div>
       )}
+
+      <ChangeDeckImageModal
+        isOpen={showChangeCoverModal}
+        cards={deck.cards}
+        currentCoverCard={deckCoverCard}
+        onSave={handleSaveDeckCover}
+        onClose={() => setShowChangeCoverModal(false)}
+      />
     </main>
   );
 };

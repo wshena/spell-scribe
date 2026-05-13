@@ -6,6 +6,7 @@ import {
   FaBox,
   FaAngleRight,
   FaAngleLeft,
+  FaEdit,
 } from "react-icons/fa";
 import { IoCreateSharp, IoBagAdd } from "react-icons/io5";
 import { CgProfile } from "react-icons/cg";
@@ -20,6 +21,10 @@ interface Icons {
   size: number;
   color?: string;
 }
+
+export const EditIcon: React.FC<Icons> = ({ style, size, color }) => {
+  return <FaEdit className={style} size={size} color={color} />;
+};
 
 export const OptionsIcon: React.FC<Icons> = ({ style, size, color }) => {
   return <SlOptionsVertical className={style} size={size} color={color} />;
