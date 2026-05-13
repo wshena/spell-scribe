@@ -209,7 +209,7 @@ const CardOnDeck = ({
       </div>
 
       {hasBackFace && (
-        <div className="group-hover:opacity-100 opacity-0 transition-opacity duration-150 ease-in-out absolute right-5 top-15 z-10">
+        <div className="absolute right-5 top-15 z-10">
           <button
             type="button"
             aria-label={`Flip ${card.card_name}`}
