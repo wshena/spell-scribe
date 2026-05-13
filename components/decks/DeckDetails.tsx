@@ -369,6 +369,11 @@ const DeckDetails = () => {
     setCardMenuId(null);
   };
 
+  const handleRemoveOne = async (card: DeckCard) => {
+    await handleUpdateCardQuantity(card, card.quantity - 1);
+    setCardMenuId(null);
+  };
+
   const handleAddMore = (card: DeckCard) => {
     setQuantityModalCard(card);
     setQuantityInput(1);
@@ -852,6 +857,7 @@ const DeckDetails = () => {
                             cardMenuRefs.current[cardId] = element;
                           }}
                           onAddOne={handleAddOne}
+                          onRemoveOne={handleRemoveOne}
                           onAddMore={handleAddMore}
                           onAddToWishlist={handleAddToWishlist}
                           onAddToCollection={handleAddToCollection}

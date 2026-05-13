@@ -31,6 +31,7 @@ interface CardOnDeckProps {
   onToggleMenu: (cardId: string) => void;
   onMenuRef: (cardId: string, element: HTMLDivElement | null) => void;
   onAddOne: (card: DeckCard) => void;
+  onRemoveOne: (card: DeckCard) => void;
   onAddMore: (card: DeckCard) => void;
   onAddToWishlist: (card: DeckCard) => void;
   onAddToCollection: (card: DeckCard) => void;
@@ -75,6 +76,7 @@ const CardOnDeck = ({
   onToggleMenu,
   onMenuRef,
   onAddOne,
+  onRemoveOne,
   onAddMore,
   onAddToWishlist,
   onAddToCollection,
@@ -252,6 +254,17 @@ const CardOnDeck = ({
                   Add one
                   <span className="text-slate-500">+1</span>
                 </button>
+                {card.section !== "commander" && (
+                  <button
+                    type="button"
+                    disabled={isRemoving}
+                    onClick={() => onRemoveOne(card)}
+                    className="flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    Remove one
+                    <span className="text-slate-500">-1</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onAddMore(card)}
