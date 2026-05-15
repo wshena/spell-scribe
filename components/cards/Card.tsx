@@ -31,6 +31,8 @@ const Card = ({ data }: { data: CardProps }) => {
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const [frontLoading, setFrontLoading] = useState(true);
+  const [backLoading, setBackLoading] = useState(true);
   const [frontError, setFrontError] = useState(false);
   const [backError, setBackError] = useState(false);
   const [frontRetry, setFrontRetry] = useState(0);
@@ -108,9 +110,20 @@ const Card = ({ data }: { data: CardProps }) => {
           ) : (
             <button
               onClick={handleCardClick}
-              className="cursor-pointer w-full block"
+              className="cursor-pointer w-full block relative"
               style={tiltStyle}
             >
+              {frontLoading && (
+                <div className="absolute inset-0 z-10">
+                  <Image
+                    src="/image/empty-deck-bg.png"
+                    alt="Loading placeholder"
+                    fill
+                    className="rounded-md object-cover"
+                  />
+                </div>
+              )}
+
               <Image
                 loading="lazy"
                 src={
@@ -121,11 +134,20 @@ const Card = ({ data }: { data: CardProps }) => {
                 alt={hasValidCardFaces ? data.card_faces![0].name : data.name}
                 width={200}
                 height={280}
+                onLoad={() => setFrontLoading(false)}
                 onError={() => {
-                  if (frontRetry < 5) setFrontRetry((p) => p + 1);
-                  else setFrontError(true);
+                  setFrontLoading(false);
+
+                  if (frontRetry < 5) {
+                    setFrontRetry((p) => p + 1);
+                    setFrontLoading(true);
+                  } else {
+                    setFrontError(true);
+                  }
                 }}
-                className="rounded-md w-full h-auto"
+                className={`rounded-md w-full h-auto transition-opacity duration-300 ${
+                  frontLoading ? "opacity-0" : "opacity-100"
+                }`}
               />
             </button>
           )}
@@ -158,8 +180,19 @@ const Card = ({ data }: { data: CardProps }) => {
             ) : (
               <button
                 onClick={handleCardClick}
-                className="cursor-pointer w-full block"
+                className="cursor-pointer w-full block relative"
               >
+                {backLoading && (
+                  <div className="absolute inset-0 z-10">
+                    <Image
+                      src="/image/empty-deck-bg.png"
+                      alt="Loading placeholder"
+                      fill
+                      className="rounded-md object-cover"
+                    />
+                  </div>
+                )}
+
                 <Image
                   loading="lazy"
                   src={
@@ -170,11 +203,20 @@ const Card = ({ data }: { data: CardProps }) => {
                   alt={data.card_faces![1].name}
                   width={200}
                   height={280}
+                  onLoad={() => setBackLoading(false)}
                   onError={() => {
-                    if (backRetry < 5) setBackRetry((p) => p + 1);
-                    else setBackError(true);
+                    setBackLoading(false);
+
+                    if (backRetry < 5) {
+                      setBackRetry((p) => p + 1);
+                      setBackLoading(true);
+                    } else {
+                      setBackError(true);
+                    }
                   }}
-                  className="rounded-md w-full h-auto"
+                  className={`rounded-md w-full h-auto transition-opacity duration-300 ${
+                    backLoading ? "opacity-0" : "opacity-100"
+                  }`}
                 />
               </button>
             )}

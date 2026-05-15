@@ -66,6 +66,7 @@ const legalityStyles: Record<string, { icon: string; className: string }> = {
 const CardDetailModal = ({ card }: { card: CardProps }) => {
   const closeModal = useUtilityStore((state) => state.closeModal);
   const openModal = useUtilityStore((state) => state.openModal);
+  const setAlert = useUtilityStore((state) => state.setAlert);
 
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
 
@@ -153,8 +154,10 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
     try {
       await addCardToWishlist(card);
       setInWishlist(true);
+      setAlert({ label: `${card.name} added to wishlist`, type: "success" });
     } catch (err) {
       console.error(err);
+      setAlert({ label: `${err}`, type: "error" });
     } finally {
       setWishlistLoading(false);
     }
@@ -165,8 +168,13 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
     try {
       await removeCardFromWishlist(card.id);
       setInWishlist(false);
+      setAlert({
+        label: `${card.name} removed from wishlist`,
+        type: "success",
+      });
     } catch (err) {
       console.error(err);
+      setAlert({ label: `${err}`, type: "error" });
     } finally {
       setWishlistLoading(false);
     }
@@ -266,7 +274,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
         [&::-webkit-scrollbar-thumb]:rounded-full"
       >
         {/* card image */}
-        <div className="sticky top-0 space-y-6 w-full md:w-[40%] h-fit">
+        <div className="md:sticky md:top-0 md:space-y-6 w-full md:w-[40%] h-fit">
           <div className="md:sticky top-0 space-y-3">
             <div
               ref={imageRef}

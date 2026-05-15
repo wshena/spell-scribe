@@ -63,7 +63,7 @@ const GlobalSearchForm = ({
               value={searchValue}
               onChange={(event) => onSearchValueChange(event.target.value)}
               placeholder={placeholder}
-              className="w-full rounded-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
+              className="w-full rounded-l-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
             />
 
             {searchValue && (
@@ -80,7 +80,7 @@ const GlobalSearchForm = ({
 
           <button
             type="submit"
-            className="cursor-pointer rounded-md bg-violet-500 p-3"
+            className="cursor-pointer rounded-r-md bg-violet-500 p-3"
           >
             <SearchIcon size={15} color="white" />
           </button>
@@ -131,9 +131,7 @@ const GlobalSearchForm = ({
           )}
 
           {isLoading && (
-            <p className="self-center text-sm text-slate-400">
-              {loadingLabel}
-            </p>
+            <p className="self-center text-sm text-slate-400">{loadingLabel}</p>
           )}
         </div>
       )}
