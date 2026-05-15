@@ -1,99 +1,104 @@
-import { createClient } from '@/utils/supabase/server'
-import { CardProps } from '@/lib/scryfall/cards'
-import { formatDecks } from '@/lib/constants'
+import { createClient } from "@/utils/supabase/server";
+import { CardProps } from "@/lib/scryfall/cards";
+import { formatDecks } from "@/lib/constants";
 
 export interface DeckData {
-  id?: string
-  user_id?: string
-  name: string
-  format: string
-  visibility: 'Public' | 'Unlisted' | 'Private'
-  commander?: CardProps | null
-  description?: string | null
+  id?: string;
+  user_id?: string;
+  name: string;
+  format: string;
+  visibility: "Public" | "Unlisted" | "Private";
+  commander?: CardProps | null;
+  description?: string | null;
 }
 
 export interface DeckCard {
-  id?: string
-  card_id: string
-  card_name: string
-  type_line?: string | null
-  quantity: number
-  section: 'main' | 'sideboard' | 'commander' | 'maybeboard'
-  colors?: string[] | null
-  color_identity?: string[] | null
-  image_uris?: CardProps['image_uris'] | null
-  card_faces?: CardProps['card_faces'] | null
-  card_data?: CardProps | null  // Complete card object from Scryfall API
+  id?: string;
+  card_id: string;
+  card_name: string;
+  type_line?: string | null;
+  quantity: number;
+  section: "main" | "sideboard" | "commander" | "maybeboard";
+  colors?: string[] | null;
+  color_identity?: string[] | null;
+  image_uris?: CardProps["image_uris"] | null;
+  card_faces?: CardProps["card_faces"] | null;
+  card_data?: CardProps | null; // Complete card object from Scryfall API
 }
 
 export interface DeckWithCards extends DeckData {
-  cards: DeckCard[]
-  created_at: string
-  updated_at: string
+  cards: DeckCard[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DeckHistoryItem {
-  id: string
-  deck_id: string
-  action: 'view' | 'edit'
-  access_count: number
-  last_accessed_at: string
-  deck: DeckWithCards
+  id: string;
+  deck_id: string;
+  action: "view" | "edit";
+  access_count: number;
+  last_accessed_at: string;
+  deck: DeckWithCards;
 }
 
 type RawDeckHistoryRow = {
-  id: string
-  deck_id: string
-  action: 'view' | 'edit'
-  access_count: number
-  last_accessed_at: string
-  decks: {
-    id: string
-    name: string
-    format: string
-    visibility: 'Public' | 'Unlisted' | 'Private'
-    commander: CardProps | null
-    description: string | null
-    deck_cards: DeckCard[] | null
-    created_at: string
-    updated_at: string
-  } | Array<{
-    id: string
-    name: string
-    format: string
-    visibility: 'Public' | 'Unlisted' | 'Private'
-    commander: CardProps | null
-    description: string | null
-    deck_cards: DeckCard[] | null
-    created_at: string
-    updated_at: string
-  }>
-}
+  id: string;
+  deck_id: string;
+  action: "view" | "edit";
+  access_count: number;
+  last_accessed_at: string;
+  decks:
+    | {
+        id: string;
+        name: string;
+        format: string;
+        visibility: "Public" | "Unlisted" | "Private";
+        commander: CardProps | null;
+        description: string | null;
+        deck_cards: DeckCard[] | null;
+        created_at: string;
+        updated_at: string;
+      }
+    | Array<{
+        id: string;
+        name: string;
+        format: string;
+        visibility: "Public" | "Unlisted" | "Private";
+        commander: CardProps | null;
+        description: string | null;
+        deck_cards: DeckCard[] | null;
+        created_at: string;
+        updated_at: string;
+      }>;
+};
 
 // CREATE - Create new deck
 export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   // Validate format exists
-  const selectedFormat = formatDecks.find(f => f.name === deckData.format)
+  const selectedFormat = formatDecks.find((f) => f.name === deckData.format);
   if (!selectedFormat) {
-    throw new Error('Invalid format selected')
+    throw new Error("Invalid format selected");
   }
 
   // Validate commander requirement
   if (selectedFormat.commander && !deckData.commander) {
-    throw new Error('Commander is required for this format')
+    throw new Error("Commander is required for this format");
   }
 
   // Create deck
   const { data: deck, error: deckError } = await supabase
-    .from('decks')
+    .from("decks")
     .insert({
       user_id: user.id,
       name: deckData.name,
@@ -103,61 +108,61 @@ export async function createDeck(deckData: DeckData, cards: DeckCard[] = []) {
       description: deckData.description || null,
     })
     .select()
-    .single()
+    .single();
 
   if (deckError) {
-    throw new Error(`Failed to create deck: ${deckError.message}`)
+    throw new Error(`Failed to create deck: ${deckError.message}`);
   }
 
   // Add cards if provided
   if (cards.length > 0) {
-    const { error: cardsError } = await supabase
-      .from('deck_cards')
-      .insert(
-        cards.map(card => ({
-          deck_id: deck.id,
-          card_id: card.card_id,
-          card_name: card.card_name,
-          type_line: card.type_line || null,
-          quantity: card.quantity,
-          section: card.section,
-          colors: card.colors || null,
-          color_identity: card.color_identity || null,
-          image_uris: card.image_uris || null,
-          card_faces: card.card_faces || null,
-          card_data: card.card_data || null,  // Store complete card object
-        }))
-      )
+    const { error: cardsError } = await supabase.from("deck_cards").insert(
+      cards.map((card) => ({
+        deck_id: deck.id,
+        card_id: card.card_id,
+        card_name: card.card_name,
+        type_line: card.type_line || null,
+        quantity: card.quantity,
+        section: card.section,
+        colors: card.colors || null,
+        color_identity: card.color_identity || null,
+        image_uris: card.image_uris || null,
+        card_faces: card.card_faces || null,
+        card_data: card.card_data || null, // Store complete card object
+      })),
+    );
 
     if (cardsError) {
       // If cards insertion fails, delete the deck
-      await supabase.from('decks').delete().eq('id', deck.id)
-      throw new Error(`Failed to add cards to deck: ${cardsError.message}`)
+      await supabase.from("decks").delete().eq("id", deck.id);
+      throw new Error(`Failed to add cards to deck: ${cardsError.message}`);
     }
   }
 
-  return deck
+  return deck;
 }
 
 // READ - Get deck by ID
 export async function getDeck(deckId: string): Promise<DeckWithCards | null> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get deck with cards
   const { data: deck, error: deckError } = await supabase
-    .from('decks')
-    .select(`
+    .from("decks")
+    .select(
+      `
       *,
       deck_cards (*)
-    `)
-    .eq('id', deckId)
-    .single()
+    `,
+    )
+    .eq("id", deckId)
+    .single();
 
   if (deckError) {
-    if (deckError.code === 'PGRST116') {
-      return null // Deck not found
+    if (deckError.code === "PGRST116") {
+      return null; // Deck not found
     }
-    throw new Error(`Failed to fetch deck: ${deckError.message}`)
+    throw new Error(`Failed to fetch deck: ${deckError.message}`);
   }
 
   return {
@@ -171,16 +176,17 @@ export async function getDeck(deckId: string): Promise<DeckWithCards | null> {
     cards: deck.deck_cards || [],
     created_at: deck.created_at,
     updated_at: deck.updated_at,
-  }
+  };
 }
 
 // READ - Get user's decks
 export async function getUserDecks(userId?: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   let query = supabase
-    .from('decks')
-    .select(`
+    .from("decks")
+    .select(
+      `
       *,
       deck_cards (
         id,
@@ -195,31 +201,32 @@ export async function getUserDecks(userId?: string) {
         card_faces,
         card_data
       )
-    `)
-    .order('updated_at', { ascending: false })
+    `,
+    )
+    .order("updated_at", { ascending: false });
 
   if (userId) {
-    query = query.eq('user_id', userId)
+    query = query.eq("user_id", userId);
   } else {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return []
+      return [];
     }
 
-    query = query.eq('user_id', user.id)
+    query = query.eq("user_id", user.id);
   }
 
-  const { data: decks, error } = await query
+  const { data: decks, error } = await query;
 
   if (error) {
-    throw new Error(`Failed to fetch decks: ${error.message}`)
+    throw new Error(`Failed to fetch decks: ${error.message}`);
   }
 
-  return decks.map(deck => ({
+  return decks.map((deck) => ({
     id: deck.id,
     name: deck.name,
     format: deck.format,
@@ -230,219 +237,243 @@ export async function getUserDecks(userId?: string) {
     cards: deck.deck_cards || [],
     created_at: deck.created_at,
     updated_at: deck.updated_at,
-  }))
+  }));
 }
 
 // UPDATE - Update deck
 export async function updateDeck(deckId: string, updates: Partial<DeckData>) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   // Validate format if being updated
   if (updates.format) {
-    const selectedFormat = formatDecks.find(f => f.name === updates.format)
+    const selectedFormat = formatDecks.find((f) => f.name === updates.format);
     if (!selectedFormat) {
-      throw new Error('Invalid format selected')
+      throw new Error("Invalid format selected");
     }
 
     // Check if commander is required
     if (selectedFormat.commander && !updates.commander) {
       // Get current deck to check existing commander
-      const currentDeck = await getDeck(deckId)
+      const currentDeck = await getDeck(deckId);
       if (!currentDeck?.commander) {
-        throw new Error('Commander is required for this format')
+        throw new Error("Commander is required for this format");
       }
     }
   }
 
   const { data, error } = await supabase
-    .from('decks')
+    .from("decks")
     .update({
       ...(updates.name && { name: updates.name }),
       ...(updates.format && { format: updates.format }),
       ...(updates.visibility && { visibility: updates.visibility }),
       ...(updates.commander !== undefined && { commander: updates.commander }),
-      ...(updates.description !== undefined && { description: updates.description }),
+      ...(updates.description !== undefined && {
+        description: updates.description,
+      }),
     })
-    .eq('id', deckId)
-    .eq('user_id', user.id) // Ensure user owns the deck
+    .eq("id", deckId)
+    .eq("user_id", user.id) // Ensure user owns the deck
     .select()
-    .single()
+    .single();
 
   if (error) {
-    throw new Error(`Failed to update deck: ${error.message}`)
+    throw new Error(`Failed to update deck: ${error.message}`);
   }
 
-  return data
+  return data;
 }
 
 // DELETE - Delete deck
 export async function deleteDeck(deckId: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   const { error } = await supabase
-    .from('decks')
+    .from("decks")
     .delete()
-    .eq('id', deckId)
-    .eq('user_id', user.id) // Ensure user owns the deck
+    .eq("id", deckId)
+    .eq("user_id", user.id); // Ensure user owns the deck
 
   if (error) {
-    throw new Error(`Failed to delete deck: ${error.message}`)
+    throw new Error(`Failed to delete deck: ${error.message}`);
   }
 
-  return true
+  return true;
 }
 
 // DECK CARDS CRUD
 
 // Add card to deck
 export async function addCardToDeck(deckId: string, card: DeckCard) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   // Verify deck ownership
   const { data: deck, error: deckError } = await supabase
-    .from('decks')
-    .select('id')
-    .eq('id', deckId)
-    .eq('user_id', user.id)
-    .single()
+    .from("decks")
+    .select("id")
+    .eq("id", deckId)
+    .eq("user_id", user.id)
+    .single();
 
   if (deckError || !deck) {
-    throw new Error('Deck not found or access denied')
+    throw new Error("Deck not found or access denied");
   }
 
   const { data: existingCard, error: existingCardError } = await supabase
-    .from('deck_cards')
-    .select('id, quantity')
-    .eq('deck_id', deckId)
-    .eq('card_id', card.card_id)
-    .eq('section', card.section)
-    .maybeSingle()
+    .from("deck_cards")
+    .select("id, quantity")
+    .eq("deck_id", deckId)
+    .eq("card_id", card.card_id)
+    .eq("section", card.section)
+    .maybeSingle();
 
   if (existingCardError) {
-    throw new Error(`Failed to check deck card: ${existingCardError.message}`)
+    throw new Error(`Failed to check deck card: ${existingCardError.message}`);
   }
 
   const cardPayload = {
-      card_name: card.card_name,
-      type_line: card.type_line || null,
-      colors: card.colors || null,
-      color_identity: card.color_identity || null,
-      image_uris: card.image_uris || null,
-      card_faces: card.card_faces || null,
-      card_data: card.card_data || null,  // Store complete card object
-  }
+    card_name: card.card_name,
+    type_line: card.type_line || null,
+    colors: card.colors || null,
+    color_identity: card.color_identity || null,
+    image_uris: card.image_uris || null,
+    card_faces: card.card_faces || null,
+    card_data: card.card_data || null, // Store complete card object
+  };
 
   const query = existingCard
     ? supabase
-      .from('deck_cards')
-      .update({
-        ...cardPayload,
-        quantity: existingCard.quantity + card.quantity,
-      })
-      .eq('id', existingCard.id)
-    : supabase
-      .from('deck_cards')
-      .insert({
+        .from("deck_cards")
+        .update({
+          ...cardPayload,
+          quantity: existingCard.quantity + card.quantity,
+        })
+        .eq("id", existingCard.id)
+    : supabase.from("deck_cards").insert({
         deck_id: deckId,
         card_id: card.card_id,
         quantity: card.quantity,
         section: card.section,
         ...cardPayload,
-      })
+      });
 
-  const { data, error } = await query.select().single()
+  const { data, error } = await query.select().single();
 
   if (error) {
-    throw new Error(`Failed to add card to deck: ${error.message}`)
+    throw new Error(`Failed to add card to deck: ${error.message}`);
   }
 
-  return data
+  return data;
 }
 
 // Update card quantity in deck
-export async function updateCardInDeck(deckId: string, cardId: string, section: string, quantity: number) {
-  const supabase = await createClient()
+export async function updateCardInDeck(
+  deckId: string,
+  cardId: string,
+  section: string,
+  quantity: number,
+) {
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   if (quantity <= 0) {
     // Remove card if quantity is 0 or negative
-    return await removeCardFromDeck(deckId, cardId, section)
+    return await removeCardFromDeck(deckId, cardId, section);
   }
 
   const { data, error } = await supabase
-    .from('deck_cards')
+    .from("deck_cards")
     .update({ quantity })
-    .eq('deck_id', deckId)
-    .eq('card_id', cardId)
-    .eq('section', section)
+    .eq("deck_id", deckId)
+    .eq("card_id", cardId)
+    .eq("section", section)
     .select()
-    .single()
+    .single();
 
   if (error) {
-    throw new Error(`Failed to update card in deck: ${error.message}`)
+    throw new Error(`Failed to update card in deck: ${error.message}`);
   }
 
-  return data
+  return data;
 }
 
 // Remove card from deck
-export async function removeCardFromDeck(deckId: string, cardId: string, section: string) {
-  const supabase = await createClient()
+export async function removeCardFromDeck(
+  deckId: string,
+  cardId: string,
+  section: string,
+) {
+  const supabase = await createClient();
 
   // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('User not authenticated')
+    throw new Error("User not authenticated");
   }
 
   const { error } = await supabase
-    .from('deck_cards')
+    .from("deck_cards")
     .delete()
-    .eq('deck_id', deckId)
-    .eq('card_id', cardId)
-    .eq('section', section)
+    .eq("deck_id", deckId)
+    .eq("card_id", cardId)
+    .eq("section", section);
 
   if (error) {
-    throw new Error(`Failed to remove card from deck: ${error.message}`)
+    throw new Error(`Failed to remove card from deck: ${error.message}`);
   }
 
-  return true
+  return true;
 }
 
 // Get deck statistics
 export async function getDeckStats(deckId: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from('deck_cards')
-    .select('section, quantity')
-    .eq('deck_id', deckId)
+    .from("deck_cards")
+    .select("section, quantity")
+    .eq("deck_id", deckId);
 
   if (error) {
-    throw new Error(`Failed to get deck stats: ${error.message}`)
+    throw new Error(`Failed to get deck stats: ${error.message}`);
   }
 
   const stats = {
@@ -450,107 +481,115 @@ export async function getDeckStats(deckId: string) {
     sideboard: 0,
     commander: 0,
     maybeboard: 0,
-    total: 0
-  }
+    total: 0,
+  };
 
-  data.forEach(card => {
-    stats[card.section as keyof typeof stats] += card.quantity
-    stats.total += card.quantity
-  })
+  data.forEach((card) => {
+    stats[card.section as keyof typeof stats] += card.quantity;
+    stats.total += card.quantity;
+  });
 
-  return stats
+  return stats;
 }
 
 // Validate deck against format rules
 export async function validateDeck(deckId: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Get deck with format
   const { data: deck, error: deckError } = await supabase
-    .from('decks')
-    .select('format, commander')
-    .eq('id', deckId)
-    .single()
+    .from("decks")
+    .select("format, commander")
+    .eq("id", deckId)
+    .single();
 
   if (deckError || !deck) {
-    throw new Error('Deck not found')
+    throw new Error("Deck not found");
   }
 
   // Get deck statistics
-  const stats = await getDeckStats(deckId)
+  const stats = await getDeckStats(deckId);
 
   // Get format rules
-  const formatRules = formatDecks.find(f => f.name === deck.format)
+  const formatRules = formatDecks.find((f) => f.name === deck.format);
 
   if (!formatRules) {
-    throw new Error('Invalid deck format')
+    throw new Error("Invalid deck format");
   }
 
-  const errors: string[] = []
+  const errors: string[] = [];
 
   // Check minimum deck size
   if (stats.main < formatRules.minDeckSize) {
-    errors.push(`Deck must have at least ${formatRules.minDeckSize} cards in main deck`)
+    errors.push(
+      `Deck must have at least ${formatRules.minDeckSize} cards in main deck`,
+    );
   }
 
   // Check sideboard size
   if (stats.sideboard > formatRules.sideboardSize) {
-    errors.push(`Sideboard cannot exceed ${formatRules.sideboardSize} cards`)
+    errors.push(`Sideboard cannot exceed ${formatRules.sideboardSize} cards`);
   }
 
   // Check commander requirement
   if (formatRules.commander && !deck.commander) {
-    errors.push('This format requires a commander')
+    errors.push("This format requires a commander");
   }
 
   // Check commander count
   if (formatRules.commander && stats.commander !== 1) {
-    errors.push('Commander format must have exactly 1 commander')
+    errors.push("Commander format must have exactly 1 commander");
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    stats
-  }
+    stats,
+  };
 }
 
-export async function recordDeckHistory(deckId: string, action: 'view' | 'edit' = 'view') {
-  const supabase = await createClient()
+export async function recordDeckHistory(
+  deckId: string,
+  action: "view" | "edit" = "view",
+) {
+  const supabase = await createClient();
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    return null
+    return null;
   }
 
   const { data: existing } = await supabase
-    .from('deck_history')
-    .select('id, access_count')
-    .eq('user_id', user.id)
-    .eq('deck_id', deckId)
-    .maybeSingle()
+    .from("deck_history")
+    .select("id, access_count")
+    .eq("user_id", user.id)
+    .eq("deck_id", deckId)
+    .maybeSingle();
 
   if (existing) {
     const { data, error } = await supabase
-      .from('deck_history')
+      .from("deck_history")
       .update({
         action,
         access_count: (existing.access_count || 0) + 1,
         last_accessed_at: new Date().toISOString(),
       })
-      .eq('id', existing.id)
+      .eq("id", existing.id)
       .select()
-      .single()
+      .single();
 
     if (error) {
-      throw new Error(`Failed to record deck history: ${error.message}`)
+      throw new Error(`Failed to record deck history: ${error.message}`);
     }
 
-    return data
+    return data;
   }
 
   const { data, error } = await supabase
-    .from('deck_history')
+    .from("deck_history")
     .insert({
       user_id: user.id,
       deck_id: deckId,
@@ -558,26 +597,32 @@ export async function recordDeckHistory(deckId: string, action: 'view' | 'edit' 
       access_count: 1,
     })
     .select()
-    .single()
+    .single();
 
   if (error) {
-    throw new Error(`Failed to record deck history: ${error.message}`)
+    throw new Error(`Failed to record deck history: ${error.message}`);
   }
 
-  return data
+  return data;
 }
 
-export async function getUserDeckHistory(limit = 8): Promise<DeckHistoryItem[]> {
-  const supabase = await createClient()
+export async function getUserDeckHistory(
+  limit = 8,
+): Promise<DeckHistoryItem[]> {
+  const supabase = await createClient();
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
   if (userError || !user) {
-    return []
+    return [];
   }
 
   const { data, error } = await supabase
-    .from('deck_history')
-    .select(`
+    .from("deck_history")
+    .select(
+      `
       id,
       deck_id,
       action,
@@ -598,17 +643,18 @@ export async function getUserDeckHistory(limit = 8): Promise<DeckHistoryItem[]> 
           card_faces
         )
       )
-    `)
-    .eq('user_id', user.id)
-    .order('last_accessed_at', { ascending: false })
-    .limit(limit)
+    `,
+    )
+    .eq("user_id", user.id)
+    .order("last_accessed_at", { ascending: false })
+    .limit(limit);
 
   if (error) {
-    throw new Error(`Failed to fetch deck history: ${error.message}`)
+    throw new Error(`Failed to fetch deck history: ${error.message}`);
   }
 
   return ((data || []) as unknown as RawDeckHistoryRow[]).map((item) => {
-    const deck = Array.isArray(item.decks) ? item.decks[0] : item.decks
+    const deck = Array.isArray(item.decks) ? item.decks[0] : item.decks;
 
     return {
       id: item.id,
@@ -627,6 +673,87 @@ export async function getUserDeckHistory(limit = 8): Promise<DeckHistoryItem[]> 
         created_at: deck.created_at,
         updated_at: deck.updated_at,
       },
-    }
-  })
+    };
+  });
+}
+
+// get public decks
+export async function getPublicDecks() {
+  const supabase = await createClient();
+
+  const { data: decks, error } = await supabase
+    .from("decks")
+    .select(
+      `
+      *,
+      deck_cards (
+        id,
+        card_id,
+        card_name,
+        type_line,
+        quantity,
+        section,
+        colors,
+        color_identity,
+        image_uris,
+        card_faces,
+        card_data
+      )
+    `,
+    )
+    .eq("visibility", "Public")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch public decks: ${error.message}`);
+  }
+
+  return (decks || []).map((deck) => ({
+    id: deck.id,
+    name: deck.name,
+    format: deck.format,
+    visibility: deck.visibility,
+    user_id: deck.user_id,
+    commander: deck.commander,
+    description: deck.description,
+    cards: deck.deck_cards || [],
+    created_at: deck.created_at,
+    updated_at: deck.updated_at,
+  }));
+}
+
+// update deck visibility
+export async function updateDeckVisibility(
+  deckId: string,
+  visibility: "Public" | "Private" | "Unlisted",
+) {
+  const supabase = await createClient();
+
+  // Get authenticated user
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Update visibility
+  const { data, error } = await supabase
+    .from("decks")
+    .update({
+      visibility,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", deckId)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update deck visibility: ${error.message}`);
+  }
+
+  return data;
 }

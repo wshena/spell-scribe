@@ -1,184 +1,241 @@
-'use client'
+"use client";
 
-import { useState, useMemo, useRef, useEffect } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { DeckWithCards } from '@/lib/supabase/decks'
-import { extractManaColors, formatRelativeTime, getColorInfo } from '@/lib/utils/deckUtils'
-import { getManaColorSymbolMap } from '@/lib/scryfall/manaSymbols'
-import { SearchIcon, OptionsIcon } from '@/components/icons/Icons'
-import { useUtilityStore } from '@/lib/zustand/utilityStore'
-import DeleteDeckModal from '../ui/modal/DeleteDeckModal'
+import { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { DeckWithCards } from "@/lib/supabase/decks";
+import {
+  extractManaColors,
+  formatRelativeTime,
+  getColorInfo,
+} from "@/lib/utils/deckUtils";
+import { getManaColorSymbolMap } from "@/lib/scryfall/manaSymbols";
+import { SearchIcon, OptionsIcon } from "@/components/icons/Icons";
+import { useUtilityStore } from "@/lib/zustand/utilityStore";
+import DeleteDeckModal from "../ui/modal/DeleteDeckModal";
 
-type SortOption = 'name' | 'format' | 'updated' | 'cards'
+type SortOption = "name" | "format" | "updated" | "cards";
 
 interface UserDeckListTableProps {
-  decks: DeckWithCards[]
+  decks: DeckWithCards[];
 }
 
 export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
-  const router = useRouter()
-  const setAlert = useUtilityStore((state) => state.setAlert)
-  const openModal = useUtilityStore((state) => state.openModal)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<SortOption>('updated')
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
-  const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null)
-  const [colorSymbolMap, setColorSymbolMap] = useState<Map<string, string>>(new Map())
-  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null)
+  const router = useRouter();
+  const setAlert = useUtilityStore((state) => state.setAlert);
+  const openModal = useUtilityStore((state) => state.openModal);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("updated");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null);
+  const [colorSymbolMap, setColorSymbolMap] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [deleteModal, setDeleteModal] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
-  const deckVisibilities = ['Public', 'Unlisted', 'Private'];
+  const deckVisibilities = ["Public", "Unlisted", "Private"];
 
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (openMenuId && menuRefs.current[openMenuId]) {
         if (!menuRefs.current[openMenuId]?.contains(event.target as Node)) {
-          setOpenMenuId(null)
-          setMenuPosition(null)
+          setOpenMenuId(null);
+          setMenuPosition(null);
         }
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuId])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
 
   useEffect(() => {
     const fetchColorSymbols = async () => {
       try {
-        setColorSymbolMap(await getManaColorSymbolMap())
+        setColorSymbolMap(await getManaColorSymbolMap());
       } catch (error) {
-        console.error('Error fetching color mana symbols:', error)
+        console.error("Error fetching color mana symbols:", error);
       }
-    }
+    };
 
-    fetchColorSymbols()
-  }, [])
+    fetchColorSymbols();
+  }, []);
 
   useEffect(() => {
-    if (!openMenuId) return
+    if (!openMenuId) return;
 
     const closeMenu = () => {
-      setOpenMenuId(null)
-      setMenuPosition(null)
-    }
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    };
 
-    window.addEventListener('resize', closeMenu)
-    window.addEventListener('scroll', closeMenu, true)
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
     return () => {
-      window.removeEventListener('resize', closeMenu)
-      window.removeEventListener('scroll', closeMenu, true)
-    }
-  }, [openMenuId])
+      window.removeEventListener("resize", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
+    };
+  }, [openMenuId]);
 
   // Filter and sort decks
   const filteredAndSortedDecks = useMemo(() => {
-    let result = [...decks]
+    let result = [...decks];
 
     // Filter by search query
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       result = result.filter(
         (deck) =>
           deck.name.toLowerCase().includes(query) ||
           deck.format.toLowerCase().includes(query) ||
-          (deck.description?.toLowerCase().includes(query) || false)
-      )
+          deck.description?.toLowerCase().includes(query) ||
+          false,
+      );
     }
 
     // Sort
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name)
-        case 'format':
-          return a.format.localeCompare(b.format)
-        case 'updated':
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        case 'cards':
-          const aCards = a.cards.reduce((sum, card) => sum + card.quantity, 0)
-          const bCards = b.cards.reduce((sum, card) => sum + card.quantity, 0)
-          return bCards - aCards
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "format":
+          return a.format.localeCompare(b.format);
+        case "updated":
+          return (
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+        case "cards":
+          const aCards = a.cards.reduce((sum, card) => sum + card.quantity, 0);
+          const bCards = b.cards.reduce((sum, card) => sum + card.quantity, 0);
+          return bCards - aCards;
         default:
-          return 0
+          return 0;
       }
-    })
+    });
 
-    return result
-  }, [decks, searchQuery, sortBy])
+    return result;
+  }, [decks, searchQuery, sortBy]);
 
   const openDeleteModal = (deckId: string, deckName: string) => {
-    setOpenMenuId(null)
-    setMenuPosition(null)
-    setDeleteModal({ id: deckId, name: deckName })
-  }
- 
-  const closeDeleteModal = () => {
-    if (deletingDeckId) return
-    setDeleteModal(null)
-  }
+    setOpenMenuId(null);
+    setMenuPosition(null);
+    setDeleteModal({ id: deckId, name: deckName });
+  };
 
-   const handleConfirmDelete = async () => {
-    if (!deleteModal || deletingDeckId) return
- 
-    const { id: deckId, name: deckName } = deleteModal
-    setDeletingDeckId(deckId)
- 
+  const closeDeleteModal = () => {
+    if (deletingDeckId) return;
+    setDeleteModal(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal || deletingDeckId) return;
+
+    const { id: deckId, name: deckName } = deleteModal;
+    setDeletingDeckId(deckId);
+
     try {
-      const response = await fetch(`/api/decks?id=${encodeURIComponent(deckId)}`, {
-        method: 'DELETE',
-      })
- 
+      const response = await fetch(
+        `/api/decks?id=${encodeURIComponent(deckId)}`,
+        {
+          method: "DELETE",
+        },
+      );
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to delete deck')
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to delete deck");
       }
- 
-      setDeleteModal(null)
+
+      setDeleteModal(null);
       setAlert({
         label: `${deckName} deleted successfully`,
-        type: 'success',
-      })
-      router.refresh()
+        type: "success",
+      });
+      router.refresh();
     } catch (error) {
       setAlert({
-        label: error instanceof Error ? error.message : 'Failed to delete deck',
-        type: 'error',
-      })
+        label: error instanceof Error ? error.message : "Failed to delete deck",
+        type: "error",
+      });
     } finally {
-      setDeletingDeckId(null)
+      setDeletingDeckId(null);
     }
-  }
+  };
 
   const handleToggleMenu = (deckId: string, button: HTMLButtonElement) => {
     if (openMenuId === deckId) {
-      setOpenMenuId(null)
-      setMenuPosition(null)
-      return
+      setOpenMenuId(null);
+      setMenuPosition(null);
+      return;
     }
 
-    const rect = button.getBoundingClientRect()
-    setOpenMenuId(deckId)
+    const rect = button.getBoundingClientRect();
+    setOpenMenuId(deckId);
     setMenuPosition({
       top: rect.bottom + 8,
       left: Math.max(16, rect.right - 192),
-    })
-  }
+    });
+  };
 
-  const trackDeckHistory = (deckId: string, action: 'view' | 'edit') => {
+  const trackDeckHistory = (deckId: string, action: "view" | "edit") => {
     fetch(`/api/decks/${deckId}/history`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ action }),
       keepalive: true,
-    }).catch(() => {})
-  }
+    }).catch(() => {});
+  };
+
+  // change deck visibilitty
+  const changeVisibility = async (deckId: string, option: string) => {
+    try {
+      const response = await fetch(`/api/decks?id=${deckId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          visibility: option,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+
+        throw new Error(errorData?.error || "Failed to update visibility");
+      }
+
+      setAlert({
+        label: `Deck visibility changed to ${option}`,
+        type: "success",
+      });
+
+      setOpenMenuId(null);
+      setMenuPosition(null);
+
+      router.refresh();
+    } catch (error) {
+      setAlert({
+        label:
+          error instanceof Error
+            ? error.message
+            : "Failed to update visibility",
+        type: "error",
+      });
+    }
+  };
 
   if (!decks.length) {
     return (
@@ -192,12 +249,14 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
             className="mb-6 object-contain"
           />
         </div>
-        <p className="text-lg font-semibold text-white mb-2">No personal decks found</p>
+        <p className="text-lg font-semibold text-white mb-2">
+          No personal decks found
+        </p>
         <p className="text-sm text-slate-400">
           Create your first deck to start tracking cards and commander builds.
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -221,7 +280,10 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
 
           {/* Sort */}
           <div className="flex items-center gap-3">
-            <label htmlFor="sort" className="text-sm font-medium text-slate-300">
+            <label
+              htmlFor="sort"
+              className="text-sm font-medium text-slate-300"
+            >
               Sort by:
             </label>
             <select
@@ -241,15 +303,20 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
         {/* Results count */}
         {searchQuery && (
           <div className="text-sm text-slate-400">
-            Found {filteredAndSortedDecks.length} of {decks.length} deck{decks.length !== 1 ? 's' : ''}
+            Found {filteredAndSortedDecks.length} of {decks.length} deck
+            {decks.length !== 1 ? "s" : ""}
           </div>
         )}
 
         {/* Empty search result */}
         {filteredAndSortedDecks.length === 0 && searchQuery && (
           <div className="rounded-lg border border-white/10 bg-[#0f1319] p-8 text-center">
-            <p className="text-lg font-semibold text-white mb-2">No decks found</p>
-            <p className="text-sm text-slate-400">Try adjusting your search query</p>
+            <p className="text-lg font-semibold text-white mb-2">
+              No decks found
+            </p>
+            <p className="text-sm text-slate-400">
+              Try adjusting your search query
+            </p>
           </div>
         )}
 
@@ -259,35 +326,63 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
             <table className="w-full table-fixed text-sm">
               <thead>
                 <tr className="z-20 border-b border-b-white/10">
-                  <th className="w-[25%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Name</th>
-                  <th className="w-[16%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Format</th>
-                  <th className="w-[14%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Colors</th>
-                  <th className="w-[12%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Cards</th>
-                  <th className="w-[18%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Visibility</th>
-                  <th className="w-[18%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">Last Updated</th>
-                  <th className="w-[8%] px-4 py-4 text-right font-semibold text-slate-300 sm:px-6">Actions</th>
+                  <th className="w-[25%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Name
+                  </th>
+                  <th className="w-[16%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Format
+                  </th>
+                  <th className="w-[14%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Colors
+                  </th>
+                  <th className="w-[12%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Cards
+                  </th>
+                  <th className="w-[18%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Visibility
+                  </th>
+                  <th className="w-[18%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
+                    Last Updated
+                  </th>
+                  <th className="w-[8%] px-4 py-4 text-right font-semibold text-slate-300 sm:px-6">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAndSortedDecks.map((deck) => {
-                  const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0)
-                  const commanderCard = deck.cards.find((card) => card.section === 'commander')
-                  const colors = extractManaColors(deck.cards)
-                  const displayColors = colors.length ? colors : deck.commander?.color_identity || []
+                  const totalCards = deck.cards.reduce(
+                    (sum, card) => sum + card.quantity,
+                    0,
+                  );
+                  const commanderCard = deck.cards.find(
+                    (card) => card.section === "commander",
+                  );
+                  const colors = extractManaColors(deck.cards);
+                  const displayColors = colors.length
+                    ? colors
+                    : deck.commander?.color_identity || [];
 
                   return (
-                    <tr key={deck.id} className="border-b border-b-white/5 transition">
+                    <tr
+                      key={deck.id}
+                      className="border-b border-b-white/5 transition"
+                    >
                       {/* Name */}
                       <td className="px-4 py-4 sm:px-6">
                         <Link
                           href={`/decks/${deck.id}`}
                           className="block truncate font-medium text-white hover:text-violet-300 transition"
-                          onClick={() => trackDeckHistory(deck.id as string, 'view')}
+                          onClick={() =>
+                            trackDeckHistory(deck.id as string, "view")
+                          }
                         >
                           {deck.name}
                         </Link>
                         {deck.description && (
-                          <p className="mt-1 text-xs text-slate-400 line-clamp-1">{deck.description}</p>
+                          <p className="mt-1 text-xs text-slate-400 line-clamp-1">
+                            {deck.description}
+                          </p>
                         )}
                       </td>
 
@@ -302,11 +397,11 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                       <td className="px-4 py-4 sm:px-6">
                         {displayColors.length > 0 ? (
                           <div className="flex flex-wrap items-center gap-1">
-                            {displayColors.map((color) => (
+                            {displayColors.map((color) =>
                               colorSymbolMap.get(color) ? (
                                 <Image
                                   key={color}
-                                  src={colorSymbolMap.get(color) || ''}
+                                  src={colorSymbolMap.get(color) || ""}
                                   alt={getColorInfo(color).label}
                                   width={20}
                                   height={20}
@@ -315,12 +410,12 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                                 />
                               ) : (
                                 <div
-                                key={color}
-                                title={getColorInfo(color).label}
-                                className={`h-5 w-5 rounded-full border border-white/20 ${getColorInfo(color).bg}`}
+                                  key={color}
+                                  title={getColorInfo(color).label}
+                                  className={`h-5 w-5 rounded-full border border-white/20 ${getColorInfo(color).bg}`}
                                 />
-                              )
-                            ))}
+                              ),
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400">-</span>
@@ -337,19 +432,28 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
 
                       {/* visibilities */}
                       <td className="px-4 py-4 sm:px-6">
-                        <span className="text-slate-400">{deck.visibility}</span>
+                        <span className="text-slate-400">
+                          {deck.visibility}
+                        </span>
                       </td>
 
                       {/* Last Updated */}
                       <td className="px-4 py-4 sm:px-6">
-                        <span className="text-slate-400">{formatRelativeTime(deck.updated_at)}</span>
+                        <span className="text-slate-400">
+                          {formatRelativeTime(deck.updated_at)}
+                        </span>
                       </td>
 
                       {/* Actions */}
                       <td className="px-4 py-4 text-right sm:px-6">
                         <div>
                           <button
-                            onClick={(event) => handleToggleMenu(deck.id as string, event.currentTarget)}
+                            onClick={(event) =>
+                              handleToggleMenu(
+                                deck.id as string,
+                                event.currentTarget,
+                              )
+                            }
                             className="cursor-pointer p-2 text-slate-400 transition"
                             aria-label="Deck options"
                           >
@@ -360,7 +464,8 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                           {openMenuId === deck.id && (
                             <div
                               ref={(el) => {
-                                if (el) menuRefs.current[deck.id as string] = el
+                                if (el)
+                                  menuRefs.current[deck.id as string] = el;
                               }}
                               style={menuPosition || undefined}
                               className="fixed w-48 bg-slate-900 border border-white/10 z-50 shadow-2xl shadow-black/40"
@@ -369,34 +474,43 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
                                 href={`/decks/${deck.id}`}
                                 className="text-left block px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 hover:text-white transition"
                                 onClick={() => {
-                                  trackDeckHistory(deck.id as string, 'view')
-                                  setOpenMenuId(null)
+                                  trackDeckHistory(deck.id as string, "view");
+                                  setOpenMenuId(null);
                                 }}
                               >
                                 View Deck
                               </Link>
-                              {deckVisibilities.filter((option) => option !== deck.visibility).map((option:string) => (
-                                <button
-                                  key={option}
-                                  className="cursor-pointer text-left block w-full px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 hover:text-white transition border-t border-white/5"
-                                  onClick={() => {}}
-                                >
-                                  Set Visibility To {option}
-                                </button>
-                              ))}
+                              {deckVisibilities
+                                .filter((option) => option !== deck.visibility)
+                                .map((option: string) => (
+                                  <button
+                                    key={option}
+                                    className="cursor-pointer text-left block w-full px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 hover:text-white transition border-t border-white/5"
+                                    onClick={() => {
+                                      if (deck.id)
+                                        changeVisibility(deck.id, option);
+                                    }}
+                                  >
+                                    Set Visibility To {option}
+                                  </button>
+                                ))}
                               <button
                                 disabled={deletingDeckId === deck.id}
                                 className="cursor-pointer w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-slate-800 hover:text-red-300 transition border-t border-white/5"
-                                onClick={() => openDeleteModal(deck.id as string, deck.name)}
+                                onClick={() =>
+                                  openDeleteModal(deck.id as string, deck.name)
+                                }
                               >
-                                {deletingDeckId === deck.id ? 'Deleting...' : 'Delete Deck'}
+                                {deletingDeckId === deck.id
+                                  ? "Deleting..."
+                                  : "Delete Deck"}
                               </button>
                             </div>
                           )}
                         </div>
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -407,11 +521,11 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
       {/* Delete Confirmation Modal */}
       <DeleteDeckModal
         isOpen={!!deleteModal}
-        deckName={deleteModal?.name ?? ''}
+        deckName={deleteModal?.name ?? ""}
         isDeleting={!!deletingDeckId}
         onConfirm={handleConfirmDelete}
         onCancel={closeDeleteModal}
       />
     </>
-  )
+  );
 }
