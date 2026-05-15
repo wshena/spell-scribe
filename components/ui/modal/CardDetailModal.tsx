@@ -13,6 +13,11 @@ import {
   ManaSymbolInfo,
 } from "@/lib/scryfall/manaSymbols";
 import AddCardToDeckModal from "./AddCardToDeckModal";
+import {
+  addCardToWishlist,
+  checkInWishlist,
+  removeCardFromWishlist,
+} from "@/lib/api/wishlistClient";
 
 const legalityLabels: Record<string, string> = {
   standard: "Standard",
@@ -63,6 +68,11 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
   const openModal = useUtilityStore((state) => state.openModal);
 
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
+
+  const [inWishlist, setInWishlist] = useState(false);
+  const [wishlistChecking, setWishlistChecking] = useState(true); // untuk initial check
+  const [wishlistLoading, setWishlistLoading] = useState(false); // untuk action button
+
   const imageRef = useRef<HTMLDivElement>(null);
   const [manaSymbolMap, setManaSymbolMap] = useState<Map<string, string>>(
     new Map(),
@@ -121,6 +131,46 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
 
     fetchSymbolMap();
   }, []);
+
+  // cek status wishlist
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const { inWishlist } = await checkInWishlist(card.id);
+        setInWishlist(inWishlist);
+      } catch {
+        // silent
+      } finally {
+        setWishlistChecking(false);
+      }
+    };
+    check();
+  }, [card.id]);
+
+  // handlers add dan remove wishlist
+  const handleAddToWishlist = async () => {
+    setWishlistLoading(true);
+    try {
+      await addCardToWishlist(card);
+      setInWishlist(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  const handleRemoveFromWishlist = async () => {
+    setWishlistLoading(true);
+    try {
+      await removeCardFromWishlist(card.id);
+      setInWishlist(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
 
   const singleManaSymbols = getManaSymbolsForCost(manaCost);
 
@@ -217,7 +267,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
       >
         {/* card image */}
         <div className="sticky top-0 space-y-6 w-full md:w-[40%] h-fit">
-          <div className="md:sticky top-0 space-y-6">
+          <div className="md:sticky top-0 space-y-3">
             <div
               ref={imageRef}
               onMouseMove={handleMouseMove}
@@ -351,12 +401,30 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
+            <div className="flex flex-col gap-3 items-center justify-center">
               {/* add to wishlist */}
-              <button className="text-xs cursor-pointer border border-violet-500 bg-violet-600/20 hover:bg-violet-700 text-white py-1 px-4 rounded-sm flex items-center gap-2">
-                <BagAddIcon size={15} style="text-violet-300" />
-                Add to Wishlist
-              </button>
+              {wishlistChecking ? (
+                // Tampilkan skeleton/placeholder tanpa teks loading
+                <div className="h-7 rounded-sm bg-white/5 animate-pulse w-full" />
+              ) : inWishlist ? (
+                <button
+                  onClick={handleRemoveFromWishlist}
+                  disabled={wishlistLoading}
+                  className="text-xs cursor-pointer border border-rose-500 bg-rose-600/20 hover:bg-rose-700 text-white py-1 px-4 rounded-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <BagAddIcon size={15} style="text-rose-300" />
+                  {wishlistLoading ? "Removing..." : "Remove from Wishlist"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleAddToWishlist}
+                  disabled={wishlistLoading}
+                  className="text-xs cursor-pointer border border-violet-500 bg-violet-600/20 hover:bg-violet-700 text-white py-1 px-4 rounded-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <BagAddIcon size={15} style="text-violet-300" />
+                  {wishlistLoading ? "Adding..." : "Add to Wishlist"}
+                </button>
+              )}
 
               {/* add to deck */}
               <button
