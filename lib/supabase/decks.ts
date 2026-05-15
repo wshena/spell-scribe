@@ -41,6 +41,14 @@ export interface DeckHistoryItem {
   deck: DeckWithCards;
 }
 
+export interface PaginatedDecksResponse {
+  items: DeckWithCards[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
 type RawDeckHistoryRow = {
   id: string;
   deck_id: string;
@@ -677,11 +685,21 @@ export async function getUserDeckHistory(
   });
 }
 
-// get public decks
-export async function getPublicDecks() {
+// get all public decks
+export async function getPublicDecks(
+  page = 1,
+  limit = 12,
+): Promise<PaginatedDecksResponse> {
   const supabase = await createClient();
 
-  const { data: decks, error } = await supabase
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const {
+    data: decks,
+    error,
+    count,
+  } = await supabase
     .from("decks")
     .select(
       `
@@ -699,16 +717,18 @@ export async function getPublicDecks() {
         card_faces,
         card_data
       )
-    `,
+      `,
+      { count: "exact" },
     )
     .eq("visibility", "Public")
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(`Failed to fetch public decks: ${error.message}`);
   }
 
-  return (decks || []).map((deck) => ({
+  const formattedDecks: DeckWithCards[] = (decks || []).map((deck) => ({
     id: deck.id,
     name: deck.name,
     format: deck.format,
@@ -720,6 +740,14 @@ export async function getPublicDecks() {
     created_at: deck.created_at,
     updated_at: deck.updated_at,
   }));
+
+  return {
+    items: formattedDecks,
+    total: count || 0,
+    page,
+    limit,
+    hasMore: to + 1 < (count || 0),
+  };
 }
 
 // update deck visibility

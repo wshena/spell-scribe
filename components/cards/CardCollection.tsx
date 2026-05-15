@@ -154,7 +154,9 @@ const CardCollection = ({
     showTabs && activeTab !== "all"
       ? cards.filter((card) => card.rarity === activeTab)
       : cards;
-  const visibleCards = showSort ? sortCards(filteredCards, sortValue) : filteredCards;
+  const visibleCards = showSort
+    ? sortCards(filteredCards, sortValue)
+    : filteredCards;
 
   if (initialItems.data.length === 0) {
     return (
@@ -214,7 +216,7 @@ const CardCollection = ({
 
       <ul
         className={cn(
-          "mt-5 flex flex-col items-center gap-3 md:grid md:grid-cols-5 md:items-start",
+          "mt-5 gap-3 grid grid-cols-2 md:grid-cols-5 md:items-start",
           gridClassName,
         )}
       >

@@ -55,7 +55,11 @@ export async function GET(request: NextRequest) {
     // }
 
     if (visibility === "public") {
-      const decks = await getPublicDecks();
+      const page = Number(searchParams.get("page") || 1);
+      const limit = Number(searchParams.get("limit") || 12);
+
+      const decks = await getPublicDecks(page, limit);
+
       return NextResponse.json(decks);
     }
 

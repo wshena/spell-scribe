@@ -1,4 +1,6 @@
+import DeckExplorer from "@/components/decks/DeckExplorer";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
+import { getPublicDecks } from "@/lib/supabase/decks";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -19,7 +21,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function YourDecksPage() {
+export default async function DecksPage() {
+  const publicDecks = await getPublicDecks(1, 20);
+
   return (
     <main className="w-full pt-28 pb-16 bg-[#121820]">
       <ContentContainer>
@@ -35,6 +39,11 @@ export default function YourDecksPage() {
             night!
           </p>
         </section>
+
+        {/* deck list */}
+        <div className="mt-10">
+          <DeckExplorer initialDecks={publicDecks.items} />
+        </div>
       </ContentContainer>
     </main>
   );
