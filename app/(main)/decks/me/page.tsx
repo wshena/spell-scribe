@@ -1,7 +1,30 @@
+import DeckExplorer from "@/components/decks/DeckExplorer";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
+import { DeckWithCards, getUserDecks } from "@/lib/supabase/decks";
+import { Metadata } from "next";
 import React from "react";
 
-const page = () => {
+export const metadata: Metadata = {
+  title: "Explore Decks | SpellScribe - MTG Deck Building Tool",
+  description:
+    "Browse and explore all Magic: The Gathering Decks. Discover decks, build powerful decks with SpellScribe.",
+  keywords: [
+    "MTG sets",
+    "Magic sets",
+    "Magic: The Gathering sets",
+    "MTG cards",
+    "deck building",
+  ],
+  openGraph: {
+    title: "Explore Decks | SpellScribe",
+    description: "Browse and explore all Magic: The Gathering decks.",
+    type: "website",
+  },
+};
+
+const page = async () => {
+  const userDecks = (await getUserDecks()) as DeckWithCards[];
+
   return (
     <main className="w-full pt-28 pb-16 bg-[#121820]">
       <ContentContainer>
@@ -20,7 +43,7 @@ const page = () => {
 
         {/* deck list */}
         <div className="mt-10">
-          <h1>hello</h1>
+          <DeckExplorer initialDecks={userDecks} />
         </div>
       </ContentContainer>
     </main>

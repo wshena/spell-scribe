@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { DeckWithCards } from "@/lib/supabase/decks";
-import { SearchIcon } from "../icons/Icons";
+import { CancelIcon, SearchIcon } from "../icons/Icons";
 import DeckCard from "../cards/DeckCard";
+import { useParams, usePathname } from "next/navigation";
+import Link from "next/link";
 
 const tabs = [
   {
@@ -29,6 +31,8 @@ export default function DeckExplorer({
 }: {
   initialDecks: DeckWithCards[];
 }) {
+  const pathname = usePathname();
+
   const [query, setQuery] = useState("");
 
   const filteredDecks = useMemo(() => {
@@ -52,35 +56,52 @@ export default function DeckExplorer({
         {/* Tabs */}
         <div className="flex flex-wrap items-center gap-3">
           {tabs.map((tab, index) => (
-            <a
+            <Link
               key={index}
               href={tab.href}
               className={`rounded-full px-5 py-2 text-sm transition ${
-                index === 0
+                tab.href === pathname.toLowerCase()
                   ? "bg-white/20 text-white"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
               {tab.label}
-            </a>
+            </Link>
           ))}
         </div>
 
         {/* Search + Actions */}
         <div className="flex flex-col gap-3 sm:flex-row">
           {/* Search */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search decks..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-11 w-full sm:w-80 rounded-lg border border-violet-500/40 bg-[#0f1319] pl-4 pr-11 text-sm text-white outline-none transition focus:border-violet-400"
-            />
+          <div className="flex w-full items-center gap-0 lg:w-[50%]">
+            <div className="relative">
+              <span className="sr-only">Search Decks</span>
+              <input
+                type="text"
+                placeholder="Search decks..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full rounded-l-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
+              />
 
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-violet-300">
-              <SearchIcon size={18} />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 transition hover:text-white"
+                  aria-label="Clear search"
+                >
+                  <CancelIcon size={15} color="white" />
+                </button>
+              )}
             </div>
+
+            <button
+              type="submit"
+              className="cursor-pointer rounded-r-md bg-violet-500 p-3"
+            >
+              <SearchIcon size={15} color="white" />
+            </button>
           </div>
 
           {/* Filter Button */}

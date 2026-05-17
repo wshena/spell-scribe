@@ -2,7 +2,7 @@
 
 import { FormEvent } from "react";
 import { cn } from "@/lib/utils";
-import { SearchIcon } from "@/components/icons/Icons";
+import { CancelIcon, SearchIcon } from "@/components/icons/Icons";
 import AdvanceSearchButton from "@/components/ui/button/AdvanceSearchButton";
 
 interface SelectOption {
@@ -73,7 +73,7 @@ const GlobalSearchForm = ({
                 className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 transition hover:text-white"
                 aria-label="Clear search"
               >
-                x
+                <CancelIcon size={15} color="white" />
               </button>
             )}
           </label>

@@ -87,6 +87,8 @@ const CardOnDeck = ({
   onRemoveCard,
 }: CardOnDeckProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
+  const [frontLoaded, setFrontLoaded] = useState(false);
+  const [backLoaded, setBackLoaded] = useState(false);
   const [frontError, setFrontError] = useState(false);
   const [backError, setBackError] = useState(false);
   const [frontRetry, setFrontRetry] = useState(0);
@@ -128,38 +130,57 @@ const CardOnDeck = ({
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          {frontError ? (
-            <div className="flex aspect-200/280 w-full flex-col items-center justify-center gap-2 rounded-md bg-gray-700 text-white">
-              <span className="text-sm">Image Error</span>
+          <div className="relative w-full aspect-200/280">
+            {/* Placeholder — tampil selama belum loaded atau error */}
+            {(!frontLoaded || frontError) && (
+              <Image
+                src="/image/empty-deck-bg.png"
+                alt="Loading..."
+                width={200}
+                height={280}
+                className={`absolute inset-0 h-full w-full rounded-md object-cover ${
+                  !frontError ? "animate-pulse" : ""
+                }`}
+              />
+            )}
+
+            {!frontError && (
+              <Image
+                loading="lazy"
+                src={
+                  frontRetry > 0
+                    ? `${frontImageUri}?retry=${frontRetry}`
+                    : frontImageUri
+                }
+                alt={card.card_data?.card_faces?.[0]?.name || card.card_name}
+                width={200}
+                height={280}
+                onLoad={() => setFrontLoaded(true)}
+                onError={() => {
+                  if (frontRetry < 5) setFrontRetry((prev) => prev + 1);
+                  else setFrontError(true);
+                }}
+                className={`h-auto w-full rounded-md transition-opacity duration-500 ${
+                  frontLoaded ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            )}
+
+            {/* Retry button jika error */}
+            {frontError && (
               <button
                 type="button"
                 onClick={() => {
                   setFrontError(false);
                   setFrontRetry(0);
+                  setFrontLoaded(false);
                 }}
-                className="cursor-pointer rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 cursor-pointer rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
               >
                 Retry
               </button>
-            </div>
-          ) : (
-            <Image
-              loading="lazy"
-              src={
-                frontRetry > 0
-                  ? `${frontImageUri}?retry=${frontRetry}`
-                  : frontImageUri || ""
-              }
-              alt={card.card_data?.card_faces?.[0]?.name || card.card_name}
-              width={200}
-              height={280}
-              onError={() => {
-                if (frontRetry < 5) setFrontRetry((prev) => prev + 1);
-                else setFrontError(true);
-              }}
-              className="h-auto w-full rounded-md"
-            />
-          )}
+            )}
+          </div>
         </div>
 
         {hasBackFace && backImageUri && (
@@ -172,38 +193,55 @@ const CardOnDeck = ({
               transform: "rotateY(180deg)",
             }}
           >
-            {backError ? (
-              <div className="flex aspect-200/280 w-full flex-col items-center justify-center gap-2 rounded-md bg-gray-700 text-white">
-                <span className="text-sm">Image Error</span>
+            <div className="relative w-full aspect-200/280">
+              {(!backLoaded || backError) && (
+                <Image
+                  src="/image/empty-deck-bg.png"
+                  alt="Loading..."
+                  width={200}
+                  height={280}
+                  className={`absolute inset-0 h-full w-full rounded-md object-cover ${
+                    !backError ? "animate-pulse" : ""
+                  }`}
+                />
+              )}
+
+              {!backError && (
+                <Image
+                  loading="lazy"
+                  src={
+                    backRetry > 0
+                      ? `${backImageUri}?retry=${backRetry}`
+                      : backImageUri
+                  }
+                  alt={card.card_data?.card_faces?.[1]?.name || card.card_name}
+                  width={200}
+                  height={280}
+                  onLoad={() => setBackLoaded(true)}
+                  onError={() => {
+                    if (backRetry < 5) setBackRetry((prev) => prev + 1);
+                    else setBackError(true);
+                  }}
+                  className={`h-auto w-full rounded-md transition-opacity duration-500 ${
+                    backLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              )}
+
+              {backError && (
                 <button
                   type="button"
                   onClick={() => {
                     setBackError(false);
                     setBackRetry(0);
+                    setBackLoaded(false);
                   }}
-                  className="cursor-pointer rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+                  className="absolute bottom-2 left-1/2 -translate-x-1/2 cursor-pointer rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
                 >
                   Retry
                 </button>
-              </div>
-            ) : (
-              <Image
-                loading="lazy"
-                src={
-                  backRetry > 0
-                    ? `${backImageUri}?retry=${backRetry}`
-                    : backImageUri
-                }
-                alt={card.card_data?.card_faces?.[1]?.name || card.card_name}
-                width={200}
-                height={280}
-                onError={() => {
-                  if (backRetry < 5) setBackRetry((prev) => prev + 1);
-                  else setBackError(true);
-                }}
-                className="h-auto w-full rounded-md"
-              />
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
