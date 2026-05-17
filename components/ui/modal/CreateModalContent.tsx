@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useUtilityStore } from "@/lib/zustand/utilityStore"
-import { CancelIcon } from "../../icons/Icons"
+import { useUtilityStore } from "@/lib/zustand/utilityStore";
+import { CancelIcon } from "../../icons/Icons";
 
 const CreateModalContent = ({
   title,
   description,
 }: {
-  title: string
-  description: string
+  title: string;
+  description: string;
 }) => {
-  const closeModal = useUtilityStore((state) => state.closeModal)
+  const closeModal = useUtilityStore((state) => state.closeModal);
 
   return (
     <div className="w-[min(92vw,34rem)] rounded-xl border border-white/10 bg-[#161b24] p-6 text-white shadow-2xl shadow-black/40">
@@ -30,9 +30,7 @@ const CreateModalContent = ({
         </button>
       </div>
 
-      <div className="mt-6 rounded-lg border border-dashed border-violet-400/30 bg-violet-500/8 p-4 text-sm leading-6 text-slate-200">
-        Workspace untuk <span className="font-semibold text-white">{title}</span> siap dihubungkan ke flow create berikutnya.
-      </div>
+      <h1>hello</h1>
 
       <div className="mt-6 flex justify-end">
         <button
@@ -43,7 +41,7 @@ const CreateModalContent = ({
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CreateModalContent
+export default CreateModalContent;
