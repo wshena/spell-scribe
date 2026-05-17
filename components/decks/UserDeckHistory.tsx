@@ -29,7 +29,7 @@ export default async function UserDeckHistory({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {history.map((item) => {
           const colors = extractManaColors(item.deck.cards);
           const displayColors = colors.length

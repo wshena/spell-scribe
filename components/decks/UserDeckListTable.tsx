@@ -322,8 +322,8 @@ export default function UserDeckListTable({ decks }: UserDeckListTableProps) {
 
         {/* Table */}
         {filteredAndSortedDecks.length > 0 && (
-          <div className="relative overflow-visible">
-            <table className="w-full table-fixed text-sm">
+          <div className="relative overflow-visible md:overflow-x-visible overflow-x-auto">
+            <table className="w-full md:table-fixed table-auto text-sm min-w-160">
               <thead>
                 <tr className="z-20 border-b border-b-white/10">
                   <th className="w-[25%] px-4 py-4 text-left font-semibold text-slate-300 sm:px-6">
