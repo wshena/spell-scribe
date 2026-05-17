@@ -6,11 +6,20 @@ import Image from "next/image";
 import { useUtilityStore } from "@/lib/zustand/utilityStore";
 import CardDetailModal from "../ui/modal/CardDetailModal";
 
-const Card = ({ data }: { data: CardProps }) => {
+const Card = ({
+  data,
+  onWishlistChange,
+}: {
+  data: CardProps;
+  onWishlistChange?: () => void;
+}) => {
   const openModal = useUtilityStore((state) => state.openModal);
 
   const handleCardClick = () => {
-    openModal(<CardDetailModal card={data} />, { contentClassName: "w-full" });
+    openModal(
+      <CardDetailModal card={data} onWishlistChange={onWishlistChange} />,
+      { contentClassName: "w-full" },
+    );
   };
 
   const hasValidCardFaces =

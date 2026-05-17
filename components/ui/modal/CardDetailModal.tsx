@@ -63,7 +63,13 @@ const legalityStyles: Record<string, { icon: string; className: string }> = {
   },
 };
 
-const CardDetailModal = ({ card }: { card: CardProps }) => {
+const CardDetailModal = ({
+  card,
+  onWishlistChange,
+}: {
+  card: CardProps;
+  onWishlistChange?: () => void;
+}) => {
   const closeModal = useUtilityStore((state) => state.closeModal);
   const openModal = useUtilityStore((state) => state.openModal);
   const setAlert = useUtilityStore((state) => state.setAlert);
@@ -155,6 +161,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
       await addCardToWishlist(card);
       setInWishlist(true);
       setAlert({ label: `${card.name} added to wishlist`, type: "success" });
+      onWishlistChange?.();
     } catch (err) {
       console.error(err);
       setAlert({ label: `${err}`, type: "error" });
@@ -172,6 +179,7 @@ const CardDetailModal = ({ card }: { card: CardProps }) => {
         label: `${card.name} removed from wishlist`,
         type: "success",
       });
+      onWishlistChange?.();
     } catch (err) {
       console.error(err);
       setAlert({ label: `${err}`, type: "error" });

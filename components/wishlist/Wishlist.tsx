@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Card from "@/components/cards/Card";
 import type { WishlistItem } from "@/lib/supabase/wishlist";
 import type { CardProps } from "@/lib/scryfall/cards";
+import { useRouter } from "next/navigation";
 
 const PAGE_SIZE = 20;
 
@@ -24,6 +25,8 @@ export default function Wishlist({
   initialHasMore,
   initialTotal,
 }: WishlistExplorerProps) {
+  const router = useRouter();
+
   const [items, setItems] = useState<WishlistItem[]>(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [total, setTotal] = useState(initialTotal);
@@ -82,6 +85,22 @@ export default function Wishlist({
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, page]);
 
+  const handleWishlistChange = useCallback(() => {
+    // Reset ke halaman 1 dan re-fetch
+    fetch(`/api/wishlist?page=1&pageSize=${PAGE_SIZE}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setItems(data.items);
+        setHasMore(data.hasMore);
+        setTotal(data.total);
+        setPage(1);
+      })
+      .catch(console.error);
+
+    // Refresh Server Component cache agar tetap sinkron
+    router.refresh();
+  }, [router]);
+
   if (!items.length) {
     return (
       <div className="py-24 text-center">
@@ -108,7 +127,11 @@ export default function Wishlist({
       {/* Grid */}
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
         {items.map((item) => (
-          <Card key={item.id} data={item.card_data as CardProps} />
+          <Card
+            key={item.id}
+            data={item.card_data as CardProps}
+            onWishlistChange={handleWishlistChange}
+          />
         ))}
       </div>
 
