@@ -21,6 +21,8 @@ import DeckManaBreakdown from "@/components/decks/DeckManaBreakdown";
 import ChangeDeckImageModal from "../ui/modal/ChangeDeckImageModal";
 import DeckChangesHistory from "./DeckChangesHistory";
 import type { DeckChangeAction } from "@/lib/supabase/deckChanges";
+import type { DeckOwner } from "@/lib/supabase/decks";
+import { useAuthStore } from "@/lib/zustand/authStore";
 
 interface DeckData {
   id: string;
@@ -37,6 +39,7 @@ interface DeckData {
 
 interface DeckResponse {
   deck: DeckData;
+  owner: DeckOwner | null;
   isOwner: boolean;
 }
 
@@ -122,9 +125,11 @@ const DeckDetails = () => {
   const router = useRouter();
   const setAlert = useUtilityStore((state) => state.setAlert);
   const openModal = useUtilityStore((state) => state.openModal);
+  const currentUser = useAuthStore((state) => state.user);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const [deck, setDeck] = useState<DeckData | null>(null);
+  const [owner, setOwner] = useState<DeckOwner | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +197,7 @@ const DeckDetails = () => {
 
       const data = (await response.json()) as DeckResponse;
       setDeck(data.deck);
+      setOwner(data.owner);
       setIsOwner(data.isOwner);
       setError(null);
     } catch (err: unknown) {
@@ -204,7 +210,8 @@ const DeckDetails = () => {
   }, [deckId, setAlert]);
 
   useEffect(() => {
-    if (deckId) fetchDeck();
+    if (!deckId) return;
+    void Promise.resolve().then(fetchDeck);
   }, [deckId, fetchDeck]);
 
   useEffect(() => {
@@ -301,6 +308,15 @@ const DeckDetails = () => {
     deckCoverCard?.card_name ||
     deck?.commander?.name ||
     "Deck preview";
+  const ownerName =
+    owner?.full_name?.trim() ||
+    (isOwner
+      ? (
+          currentUser?.user_metadata?.display_name ||
+          currentUser?.user_metadata?.username ||
+          currentUser?.email?.split("@")[0]
+        )?.trim()
+      : null);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -656,6 +672,11 @@ const DeckDetails = () => {
                   <h1 className="text-3xl font-semibold leading-tight text-white lg:text-5xl">
                     {deck.name}
                   </h1>
+                  {ownerName && (
+                    <p className="mt-2 text-sm font-medium text-violet-200">
+                      By {ownerName}
+                    </p>
+                  )}
                   {deck.description && (
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
                       {deck.description}
@@ -700,7 +721,7 @@ const DeckDetails = () => {
 
       <ContentContainer>
         <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-          <aside className="self-start sticky top-23 space-y-5">
+          <aside className="self-start md:sticky md:top-23 space-y-5">
             <section className="">
               {previewCard ? (
                 <div>

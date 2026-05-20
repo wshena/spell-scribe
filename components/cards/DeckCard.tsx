@@ -34,7 +34,7 @@ const DeckCard = ({ deck }: { deck: DeckHistoryItem }) => {
   return (
     <Link
       href={`/decks/${deck.deck_id}`}
-      className="w-full md:w-75 lg:w-90 h-40 relative bg-center bg-cover"
+      className="block w-full h-40 relative bg-center bg-cover"
       style={{
         backgroundImage: `url('${getDeckCover(deck.deck)}')`,
       }}

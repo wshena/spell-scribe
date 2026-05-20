@@ -49,6 +49,14 @@ export interface PaginatedDecksResponse {
   hasMore: boolean;
 }
 
+export interface DeckOwner {
+  id: string;
+  // username: string | null;
+  email: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 type RawDeckHistoryRow = {
   id: string;
   deck_id: string;
@@ -784,4 +792,34 @@ export async function updateDeckVisibility(
   }
 
   return data;
+}
+
+// get deck owner
+export async function getDeckOwner(deckId: string): Promise<DeckOwner | null> {
+  const supabase = await createClient();
+
+  // Step 1: ambil user_id dari deck
+  const { data: deck, error: deckError } = await supabase
+    .from("decks")
+    .select("user_id")
+    .eq("id", deckId)
+    .single();
+
+  if (deckError || !deck) return null;
+
+  // Step 2: ambil profile berdasarkan user_id
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, avatar_url")
+    .eq("id", deck.user_id)
+    .single();
+
+  if (profileError || !profile) return null;
+
+  return {
+    id: profile.id,
+    email: profile.email,
+    full_name: profile.full_name,
+    avatar_url: profile.avatar_url,
+  };
 }
