@@ -13,35 +13,22 @@ interface Props {
   }>;
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id: id } = await params;
-
-  try {
-    return {
-      title: `Search Cards | SpellScribe - MTG Deck Builder`,
-      description: `Search and filter through thousands of Magic: The Gathering cards. Find the latest meta builds, budget options, and community-created decks by format, color, or commander.`,
-      keywords: [
-        "MTG deck",
-        "Magic: The Gathering",
-        "deck building",
-        "card collection",
-      ],
-      openGraph: {
-        title: `Search Cards | SpellScribe`,
-        description: `Search and filter through thousands of Magic: The Gathering cards`,
-        type: "website",
-      },
-    };
-  } catch (error) {
-    return {
-      title: "Cards Not Found | SpellScribe",
-      description: "The cards result could not be found.",
-    };
-  }
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: `Search Cards | SpellScribe - MTG Deck Builder`,
+    description: `Search and filter through thousands of Magic: The Gathering cards. Find the latest meta builds, budget options, and community-created decks by format, color, or commander.`,
+    keywords: [
+      "MTG deck",
+      "Magic: The Gathering",
+      "deck building",
+      "card collection",
+    ],
+    openGraph: {
+      title: `Search Cards | SpellScribe`,
+      description: `Search and filter through thousands of Magic: The Gathering cards`,
+      type: "website",
+    },
+  };
 }
 
 export default async function CardsSearchPage({ searchParams }: Props) {
@@ -73,8 +60,8 @@ export default async function CardsSearchPage({ searchParams }: Props) {
         </div>
 
         <p className="mb-10 text-sm md:text-md text-gray-500">
-          Search for '{q}-{order}-{dir}-{page}' returned {result.total_cards}{" "}
-          cards found
+          Search for <span>{q || "all cards"}</span> returned{" "}
+          {result.total_cards} cards found
         </p>
 
         <CardCollection

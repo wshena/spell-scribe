@@ -1,125 +1,184 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DeckWithCards } from "@/lib/supabase/decks";
-import { CancelIcon, SearchIcon } from "../icons/Icons";
 import DeckCard from "../cards/DeckCard";
-import { useParams, usePathname } from "next/navigation";
-import Link from "next/link";
+import { DeckExplorerFilters } from "@/app/(main)/decks/(explore)/search-params";
 
-const tabs = [
-  {
-    label: "All Decks",
-    href: "/decks",
-  },
-  {
-    label: "Your Decks",
-    href: "/decks/me",
-  },
-  {
-    label: "People You Follow",
-    href: "/decks/following",
-  },
-  {
-    label: "Decks You ❤️",
-    href: "/decks/liked",
-  },
-];
+type FilterableDeck = DeckWithCards & {
+  theme?: string | null;
+  themes?: string[] | null;
+  commander_bracket?: string | number | null;
+  commanderBracket?: string | number | null;
+  companion?: {
+    name?: string | null;
+  } | null;
+  partner?: {
+    name?: string | null;
+  } | null;
+  owner?: {
+    email?: string | null;
+    full_name?: string | null;
+    username?: string | null;
+  } | null;
+  author?: {
+    email?: string | null;
+    full_name?: string | null;
+    username?: string | null;
+  } | null;
+};
 
 export default function DeckExplorer({
   initialDecks,
+  filters,
+  emptyMessage = "No decks found.",
 }: {
   initialDecks: DeckWithCards[];
+  filters: DeckExplorerFilters;
+  emptyMessage?: string;
 }) {
-  const pathname = usePathname();
-
-  const [query, setQuery] = useState("");
-
   const filteredDecks = useMemo(() => {
-    if (!query.trim()) return initialDecks;
+    const normalizedQuery = filters.q.trim().toLowerCase();
+    const normalizedDeckName = filters.deckName.trim().toLowerCase();
+    const normalizedFormat = filters.format.trim().toLowerCase();
+    const normalizedCommander = filters.commander.trim().toLowerCase();
+    const normalizedPartner = filters.partner.trim().toLowerCase();
+    const normalizedTheme = filters.theme.trim().toLowerCase();
+    const normalizedBoardCard = filters.boardCard.trim().toLowerCase();
+    const normalizedCompanion = filters.companion.trim().toLowerCase();
+    const normalizedAuthors = filters.authors.trim().toLowerCase();
 
-    return initialDecks.filter((deck) => {
-      const q = query.toLowerCase();
+    const decks = initialDecks.filter((deck) => {
+      const filterableDeck = deck as FilterableDeck;
+      const deckDescription = deck.description?.toLowerCase() ?? "";
+      const commanderName = deck.commander?.name?.toLowerCase() ?? "";
+      const partnerName = filterableDeck.partner?.name?.toLowerCase() ?? "";
+      const companionName = filterableDeck.companion?.name?.toLowerCase() ?? "";
+      const deckThemes = [
+        filterableDeck.theme,
+        ...(filterableDeck.themes ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const commanderBracket = String(
+        filterableDeck.commander_bracket ??
+          filterableDeck.commanderBracket ??
+          "",
+      );
+      const authorText = [
+        deck.user_id,
+        filterableDeck.owner?.email,
+        filterableDeck.owner?.full_name,
+        filterableDeck.owner?.username,
+        filterableDeck.author?.email,
+        filterableDeck.author?.full_name,
+        filterableDeck.author?.username,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesQuery =
+        !normalizedQuery ||
+        deck.name.toLowerCase().includes(normalizedQuery) ||
+        deck.format.toLowerCase().includes(normalizedQuery) ||
+        deckDescription.includes(normalizedQuery);
+
+      const matchesDeckName =
+        !normalizedDeckName ||
+        deck.name.toLowerCase().includes(normalizedDeckName);
+
+      const matchesFormat =
+        !normalizedFormat || deck.format.toLowerCase() === normalizedFormat;
+
+      const matchesCommander =
+        !normalizedCommander || commanderName.includes(normalizedCommander);
+
+      const matchesPartner =
+        !normalizedPartner ||
+        partnerName.includes(normalizedPartner) ||
+        deck.cards.some(
+          (card) =>
+            card.section === "commander" &&
+            card.card_name.toLowerCase().includes(normalizedPartner),
+        );
+
+      const matchesTheme =
+        !normalizedTheme ||
+        deckThemes.includes(normalizedTheme) ||
+        deckDescription.includes(normalizedTheme) ||
+        deck.name.toLowerCase().includes(normalizedTheme);
+
+      const matchesBoardCard =
+        !normalizedBoardCard ||
+        deck.cards.some(
+          (card) =>
+            card.section === filters.boardSection &&
+            card.card_name.toLowerCase().includes(normalizedBoardCard),
+        );
+
+      const matchesCompanion =
+        !normalizedCompanion ||
+        companionName.includes(normalizedCompanion) ||
+        deck.cards.some((card) =>
+          card.card_name.toLowerCase().includes(normalizedCompanion),
+        );
+
+      const matchesCommanderBracket =
+        !filters.commanderBracket ||
+        compareCommanderBracket(
+          commanderBracket,
+          filters.commanderBracket,
+          filters.commanderBracketCompare,
+        );
+
+      const matchesAuthors =
+        !normalizedAuthors || authorText.includes(normalizedAuthors);
 
       return (
-        deck.name.toLowerCase().includes(q) ||
-        deck.format.toLowerCase().includes(q) ||
-        deck.description?.toLowerCase().includes(q)
+        matchesQuery &&
+        matchesDeckName &&
+        matchesFormat &&
+        matchesCommander &&
+        matchesPartner &&
+        matchesTheme &&
+        matchesBoardCard &&
+        matchesCompanion &&
+        matchesCommanderBracket &&
+        matchesAuthors
       );
     });
-  }, [initialDecks, query]);
+
+    return decks.toSorted((a, b) => {
+      switch (filters.sort) {
+        case "updated-asc":
+          return (
+            new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+          );
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "updated-desc":
+        default:
+          return (
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+      }
+    });
+  }, [filters, initialDecks]);
 
   return (
     <div className="space-y-8">
-      {/* Top Controls */}
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        {/* Tabs */}
-        <div className="flex flex-wrap items-center gap-3">
-          {tabs.map((tab, index) => (
-            <Link
-              key={index}
-              href={tab.href}
-              className={`rounded-full px-5 py-2 text-sm transition ${
-                tab.href === pathname.toLowerCase()
-                  ? "bg-white/20 text-white"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
-
-        {/* Search + Actions */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {/* Search */}
-          <div className="flex w-full items-center gap-0 lg:w-[50%]">
-            <div className="relative">
-              <span className="sr-only">Search Decks</span>
-              <input
-                type="text"
-                placeholder="Search decks..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-l-sm bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400"
-              />
-
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 transition hover:text-white"
-                  aria-label="Clear search"
-                >
-                  <CancelIcon size={15} color="white" />
-                </button>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="cursor-pointer rounded-r-md bg-violet-500 p-3"
-            >
-              <SearchIcon size={15} color="white" />
-            </button>
-          </div>
-
-          {/* Filter Button */}
-          <button className="h-11 rounded-lg border border-violet-500/40 px-5 text-sm text-violet-200 transition hover:bg-violet-500/10">
-            More Filters
-          </button>
-
-          {/* Sort Button */}
-          <button className="h-11 rounded-lg border border-violet-500/40 px-5 text-sm text-violet-200 transition hover:bg-violet-500/10">
-            Sort
-          </button>
-        </div>
-      </div>
-
       {/* Result Info */}
       <div className="text-sm text-slate-400">
         Showing {filteredDecks.length} results.
       </div>
+
+      {filteredDecks.length === 0 && (
+        <div className="text-center text-sm text-slate-300">{emptyMessage}</div>
+      )}
 
       {/* Deck Grid */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -139,4 +198,31 @@ export default function DeckExplorer({
       </div>
     </div>
   );
+}
+
+function compareCommanderBracket(
+  deckBracket: string,
+  filterBracket: string,
+  comparison: string,
+) {
+  if (!deckBracket) {
+    return false;
+  }
+
+  const deckValue = Number(deckBracket);
+  const filterValue = Number(filterBracket);
+
+  if (!Number.isFinite(deckValue) || !Number.isFinite(filterValue)) {
+    return deckBracket.toLowerCase() === filterBracket.toLowerCase();
+  }
+
+  switch (comparison) {
+    case "lt":
+      return deckValue < filterValue;
+    case "gt":
+      return deckValue > filterValue;
+    case "equals":
+    default:
+      return deckValue === filterValue;
+  }
 }

@@ -1,5 +1,6 @@
 import { fetcher } from "@/utils/fetcher";
 import { ScryfallSetCardsResponse } from "@/lib/scryfall/cards";
+import axios from "axios";
 
 export interface AdvancedSearchParams {
   name?: string;
@@ -56,6 +57,10 @@ const COLOR_MODE_MAP: Record<string, string> = {
   "Must have at least one": ">=",
   "Must not have any": "!",
 };
+
+function getEmptySearchResult(): ScryfallSetCardsResponse {
+  return { object: "list", total_cards: 0, has_more: false, data: [] };
+}
 
 export function buildScryfallQuery(params: AdvancedSearchParams): string {
   const parts: string[] = [];
@@ -144,27 +149,35 @@ export async function fetchAdvancedSearchServer(
   const dir = params.order_dir === "Descending" ? "desc" : "asc";
 
   if (!q.trim()) {
-    return { object: "list", total_cards: 0, has_more: false, data: [] };
+    return getEmptySearchResult();
   }
 
-  const response = await fetcher<ScryfallSetCardsResponse>(
-    `${process.env.SCRYFALL_API_URL}/cards/search`,
-    {
-      params: {
-        q,
-        order,
-        dir,
-        ...(params.page ? { page: String(params.page) } : {}),
+  try {
+    const response = await fetcher<ScryfallSetCardsResponse>(
+      `${process.env.SCRYFALL_API_URL}/cards/search`,
+      {
+        params: {
+          q,
+          order,
+          dir,
+          ...(params.page ? { page: String(params.page) } : {}),
+        },
+        cacheKey: `advanced-search:${q}:${order}:${dir}:${params.page ?? 1}`,
+        revalidate: 60 * 60,
+        tags: ["scryfall-advanced-search"],
       },
-      cacheKey: `advanced-search:${q}:${order}:${dir}:${params.page ?? 1}`,
-      revalidate: 60 * 60,
-      tags: ["scryfall-advanced-search"],
-    },
-  );
+    );
 
-  if (!response || !response.data) {
-    return { object: "list", total_cards: 0, has_more: false, data: [] };
+    if (!response || !response.data) {
+      return getEmptySearchResult();
+    }
+
+    return response;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return getEmptySearchResult();
+    }
+
+    throw error;
   }
-
-  return response;
 }

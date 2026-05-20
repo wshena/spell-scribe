@@ -26,7 +26,7 @@ const Navbar = () => {
     await supabase.auth.signOut();
     logoutUser();
     closeMenu();
-    router.push("/auth/login");
+    router.push("/account/auth/login");
     router.refresh();
   };
 

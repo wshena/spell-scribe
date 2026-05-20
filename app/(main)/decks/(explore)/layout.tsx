@@ -1,7 +1,7 @@
-import DeckExplorer from "@/components/decks/DeckExplorer";
 import ContentContainer from "@/components/ui/containers/ContentContainer";
-import { getPublicDecks } from "@/lib/supabase/decks";
 import { Metadata } from "next";
+import { Suspense } from "react";
+import DeckExplorerControls from "./DeckExplorerControls";
 
 export const metadata: Metadata = {
   title: "Explore Decks | SpellScribe - MTG Deck Building Tool",
@@ -21,11 +21,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function DecksPage() {
-  const publicDecks = await getPublicDecks(1, 20);
-
+export default function DecksExplorerLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <main className="w-full pt-28 pb-16 bg-[#121820]">
+    <main className="w-full bg-[#121820] pt-28 pb-16">
       <ContentContainer>
         <section className="text-white">
           <p className="text-sm uppercase tracking-[0.24em] text-violet-300">
@@ -40,9 +42,11 @@ export default async function DecksPage() {
           </p>
         </section>
 
-        {/* deck list */}
-        <div className="mt-10">
-          <DeckExplorer initialDecks={publicDecks.items} />
+        <div className="mt-10 space-y-8">
+          <Suspense fallback={null}>
+            <DeckExplorerControls />
+          </Suspense>
+          {children}
         </div>
       </ContentContainer>
     </main>
