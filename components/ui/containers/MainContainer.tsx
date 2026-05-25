@@ -1,34 +1,31 @@
-'use client'
+"use client";
 
-import React from 'react'
-import ModalContainer from './ModalContainer'
-import { useUtilityStore } from '@/lib/zustand/utilityStore'
-import Alert from '../feedback/Alert'
-import RouteLoadingBar from '../feedback/RouteLoadingBar'
+import React, { Suspense } from "react";
+import ModalContainer from "./ModalContainer";
+import { useUtilityStore } from "@/lib/zustand/utilityStore";
+import Alert from "../feedback/Alert";
+import RouteLoadingBar from "../feedback/RouteLoadingBar";
 interface MainContainerProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 const MainContainer = ({ children }: MainContainerProps) => {
-  const alert = useUtilityStore(state => state.alert)  
-  const isModalOpen = useUtilityStore(state => state.isModalOpen)
-  const modalContent = useUtilityStore(state => state.modalContent)
-  const modalOptions = useUtilityStore(state => state.modalOptions)
-  const closeModal = useUtilityStore(state => state.closeModal)
+  const alert = useUtilityStore((state) => state.alert);
+  const isModalOpen = useUtilityStore((state) => state.isModalOpen);
+  const modalContent = useUtilityStore((state) => state.modalContent);
+  const modalOptions = useUtilityStore((state) => state.modalOptions);
+  const closeModal = useUtilityStore((state) => state.closeModal);
 
   return (
     <div className="relative min-h-screen w-full">
       {/* loading bar */}
-      <RouteLoadingBar />
+      <Suspense fallback={null}>
+        <RouteLoadingBar />
+      </Suspense>
 
       {/* Alert — tampil di semua halaman */}
-      {alert.label && (
-        <Alert
-          label={alert.label}
-          type={alert.type}
-        />
-      )}
-      
+      {alert.label && <Alert label={alert.label} type={alert.type} />}
+
       {/* modal */}
       <ModalContainer
         isOpen={isModalOpen}
@@ -40,11 +37,11 @@ const MainContainer = ({ children }: MainContainerProps) => {
       >
         {modalContent}
       </ModalContainer>
-      
+
       {/* Page Content */}
       {children}
     </div>
-  )
-}
+  );
+};
 
-export default MainContainer
+export default MainContainer;
