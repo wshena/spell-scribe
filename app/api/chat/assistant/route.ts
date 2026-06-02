@@ -22,6 +22,7 @@ type AssistantRequestBody = {
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 const MAX_MESSAGES = 12;
 const MAX_CARDS_IN_CONTEXT = 140;
+const MAX_OUTPUT_TOKENS = 4096;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
       config: {
         systemInstruction: buildSystemInstruction(buildDeckContext(deck)),
         temperature: 0.45,
-        maxOutputTokens: 1400,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
         abortSignal: request.signal,
       },
     });

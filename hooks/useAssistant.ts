@@ -63,8 +63,14 @@ export function useAssistant() {
         const chunk = decoder.decode(value, { stream: true });
         updateLastMessage(chunk);
       }
+
+      const remainingText = decoder.decode();
+      if (remainingText) updateLastMessage(remainingText);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") {
+        updateLastMessage("Respons dihentikan.");
+        return;
+      }
 
       const message =
         typeof err === "object" &&

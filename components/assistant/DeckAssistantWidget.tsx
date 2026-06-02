@@ -14,6 +14,8 @@ import {
   FaTimes,
   FaTrash,
 } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useAssistant } from "@/hooks/useAssistant";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +57,94 @@ const QUICK_ACTIONS = [
       "Estimate power level EDH deck ini dari 1 sampai 10. Beri alasan, asumsi, dan perubahan yang bisa menaikkan/menurunkan power level.",
   },
 ];
+
+function AssistantMarkdown({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ children }) => (
+          <h1 className="mb-2 mt-3 text-base font-semibold text-white first:mt-0">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="mb-2 mt-3 text-sm font-semibold text-violet-200 first:mt-0">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="mb-1.5 mt-3 text-sm font-semibold text-slate-100 first:mt-0">
+            {children}
+          </h3>
+        ),
+        p: ({ children }) => (
+          <p className="my-2 leading-6 first:mt-0 last:mb-0">{children}</p>
+        ),
+        ul: ({ children }) => (
+          <ul className="my-2 list-disc space-y-1 pl-5 marker:text-violet-300">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="my-2 list-decimal space-y-1 pl-5 marker:text-violet-300">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => <li className="pl-1 leading-6">{children}</li>,
+        strong: ({ children }) => (
+          <strong className="font-semibold text-white">{children}</strong>
+        ),
+        em: ({ children }) => <em className="text-slate-200">{children}</em>,
+        blockquote: ({ children }) => (
+          <blockquote className="my-2 border-l-2 border-violet-400/70 pl-3 text-slate-300">
+            {children}
+          </blockquote>
+        ),
+        code: ({ children }) => (
+          <code className="rounded bg-slate-950 px-1.5 py-0.5 text-[0.85em] text-violet-100">
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="my-2 overflow-x-auto rounded-md border border-white/10 bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+            {children}
+          </pre>
+        ),
+        table: ({ children }) => (
+          <div className="my-3 overflow-x-auto rounded-md border border-white/10">
+            <table className="w-full border-collapse text-left text-xs">
+              {children}
+            </table>
+          </div>
+        ),
+        th: ({ children }) => (
+          <th className="border-b border-white/10 bg-slate-800 px-2 py-2 font-semibold text-slate-100">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="border-b border-white/5 px-2 py-2 align-top text-slate-200">
+            {children}
+          </td>
+        ),
+        a: ({ children, href }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-violet-300 underline underline-offset-2 hover:text-violet-200"
+          >
+            {children}
+          </a>
+        ),
+        hr: () => <hr className="my-3 border-white/10" />,
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  );
+}
 
 export default function DeckAssistantWidget() {
   const {
@@ -164,6 +254,12 @@ export default function DeckAssistantWidget() {
               {messages.map((message, index) => {
                 const isUser = message.role === "user";
                 const text = message.parts.map((part) => part.text).join("\n");
+                const isWaitingForResponse =
+                  isStreaming &&
+                  !isUser &&
+                  index === messages.length - 1 &&
+                  !text.trim();
+
                 return (
                   <div
                     key={`${message.role}-${index}`}
@@ -180,9 +276,20 @@ export default function DeckAssistantWidget() {
                           : "border border-white/10 bg-slate-900 text-slate-100",
                       )}
                     >
-                      <p className="whitespace-pre-wrap wrap-break-word">
-                        {text}
-                      </p>
+                      {isWaitingForResponse ? (
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-violet-300" />
+                          <span>Assistant sedang menyusun jawaban...</span>
+                        </div>
+                      ) : isUser ? (
+                        <p className="whitespace-pre-wrap break-words">
+                          {text}
+                        </p>
+                      ) : (
+                        <div className="break-words">
+                          <AssistantMarkdown>{text}</AssistantMarkdown>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
