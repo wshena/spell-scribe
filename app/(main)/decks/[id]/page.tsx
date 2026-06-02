@@ -1,7 +1,7 @@
 import { Metadata } from "next";
-import dynamic from "next/dynamic";
 import { getDeck } from "@/lib/supabase/decks";
 import DeckDetails from "@/components/decks/DeckDetails";
+import DeckAssistantWidget from "@/components/assistant/DeckAssistantWidget";
 
 export async function generateMetadata({
   params,
@@ -28,7 +28,7 @@ export async function generateMetadata({
         type: "website",
       },
     };
-  } catch (error) {
+  } catch {
     return {
       title: "Deck Not Found | SpellScribe",
       description: "This MTG deck could not be found.",
@@ -37,7 +37,12 @@ export async function generateMetadata({
 }
 
 const DeckPage = () => {
-  return <DeckDetails />;
+  return (
+    <>
+      <DeckDetails />
+      <DeckAssistantWidget />
+    </>
+  );
 };
 
 export default DeckPage;
