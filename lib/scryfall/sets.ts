@@ -137,7 +137,7 @@ export const getSetFiltersFromParams = (
   params:
     | URLSearchParams
     | Record<string, string | string[] | undefined>
-    | undefined
+    | undefined,
 ): SetFilters => {
   const getValue = (key: string) => {
     if (!params) {
@@ -158,7 +158,10 @@ export const getSetFiltersFromParams = (
     setType: getValue("setType")?.trim() || DEFAULT_FILTERS.setType,
     sort: parseSort(getValue("sort")),
     exactCode: getValue("code")?.trim() ?? DEFAULT_FILTERS.exactCode,
-    includeDigital: parseBoolean(getValue("includeDigital"), DEFAULT_FILTERS.includeDigital),
+    includeDigital: parseBoolean(
+      getValue("includeDigital"),
+      DEFAULT_FILTERS.includeDigital,
+    ),
   };
 };
 
@@ -178,7 +181,10 @@ const sortSets = (sets: ScryfallSet[], sort: SetSortOption) => {
       case "name_desc":
         return right.name.localeCompare(left.name);
       case "card_count_desc":
-        return right.card_count - left.card_count || right.name.localeCompare(left.name);
+        return (
+          right.card_count - left.card_count ||
+          right.name.localeCompare(left.name)
+        );
       case "released_desc":
       default:
         return compareDates(right.released_at, left.released_at);
@@ -238,18 +244,20 @@ const filterSets = (sets: ScryfallSet[], filters: SetFilters) => {
       return true;
     }
 
-    const haystacks = [
-      set.name,
-      set.code,
-      set.set_type,
-    ].map(normalizeText);
+    const haystacks = [set.name, set.code, set.set_type].map(normalizeText);
 
     return haystacks.some((value) => value.includes(query));
   });
 };
 
 export async function fetchAllSets(): Promise<ScryfallSet[]> {
-  const response = await fetch(`${process.env.SCRYFALL_API_URL}/sets`, {
+  const url = `${process.env.SCRYFALL_API_URL}/sets`;
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "SpellScribe/1.0",
+      Accept: "application/json",
+    },
     next: {
       revalidate: 60 * 60 * 24,
       tags: ["scryfall-sets"],
@@ -257,7 +265,16 @@ export async function fetchAllSets(): Promise<ScryfallSet[]> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch Scryfall sets");
+    const body = await response.text();
+    console.error(
+      "Scryfall sets fetch failed:",
+      response.status,
+      response.statusText,
+      body,
+    );
+    throw new Error(
+      `Failed to fetch Scryfall sets: ${response.status} ${response.statusText}`,
+    );
   }
 
   const payload = (await response.json()) as ScryfallSetsResponse;
@@ -266,7 +283,14 @@ export async function fetchAllSets(): Promise<ScryfallSet[]> {
 }
 
 export async function fetchSetDetail(setCode: string): Promise<ScryfallSet> {
-  const response = await fetch(`${process.env.SCRYFALL_API_URL}/sets/${setCode}`, {
+  const url = `${process.env.SCRYFALL_API_URL}/sets/${setCode}`;
+  console.log("Fetching set detail from:", url);
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "SpellScribe/1.0",
+      Accept: "application/json",
+    },
     next: {
       revalidate: 60 * 60 * 24,
       tags: ["scryfall-sets"],
@@ -274,7 +298,16 @@ export async function fetchSetDetail(setCode: string): Promise<ScryfallSet> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch Scryfall sets");
+    const body = await response.text();
+    console.error(
+      "Scryfall set detail fetch failed:",
+      response.status,
+      response.statusText,
+      body,
+    );
+    throw new Error(
+      `Failed to fetch Scryfall set detail: ${response.status} ${response.statusText}`,
+    );
   }
 
   const payload = (await response.json()) as ScryfallSet;
@@ -282,7 +315,9 @@ export async function fetchSetDetail(setCode: string): Promise<ScryfallSet> {
   return payload;
 }
 
-export async function getSetsPage(filters: SetFilters): Promise<SetsPageResult> {
+export async function getSetsPage(
+  filters: SetFilters,
+): Promise<SetsPageResult> {
   const sets = await fetchAllSets();
   const filteredSets = sortSets(filterSets(sets, filters), filters.sort);
   const startIndex = (filters.page - 1) * SETS_PAGE_SIZE;
